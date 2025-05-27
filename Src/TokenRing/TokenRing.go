@@ -1,21 +1,13 @@
-package tokenRing
-
-import (
-	"fmt"
-)
+package TokenRing
 
 func CreateRing() {
 
 }
 
 func EnterRing() {
-	
+
 }
 
 func InitClient() {
 
-}
-
-func main () {
-	
 }
