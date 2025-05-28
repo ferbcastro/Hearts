@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	PORT = ":8080"
+	PORT = ":54321"
 )
 
 type SockDgram struct {
