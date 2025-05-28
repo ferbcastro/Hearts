@@ -1,5 +1,0 @@
-package Hearts
-
-func Func() {
-
-}
