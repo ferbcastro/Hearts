@@ -5,18 +5,21 @@ const ()
 
 /* Other constants */
 const (
-	DATA_SIZE = 128 // dunno
+	DATA_SIZE   = 128 // dunno
+	TOKEN_FREE  = 0
+	VALID_PKG   = 1
+	FORWARD_PKG = 2
 )
 
 /* This struct must be aligned */
 type TokenRingPackage struct {
 	tokenBusy byte
+	src       byte
 	dest      byte
 	pkgType   byte
 	data      [DATA_SIZE]byte
 }
 
-// change if needed
 var recvPkg TokenRingPackage
 var sendPkg TokenRingPackage
 
@@ -32,7 +35,17 @@ func Send(dest int, msgType int, bytes []byte) {
 
 }
 
-/* Block until valid pkg for the calling machine arrives. Always forward pkg */
+/* Block until valid pkg for the calling machine arrives */
 func Recv(bytes []byte, size uint) {
+
+}
+
+/* */
+func recv() int {
+
+}
+
+/* */
+func send() {
 
 }
