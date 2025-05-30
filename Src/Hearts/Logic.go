@@ -97,7 +97,8 @@ var cards = []byte{
 }
 
 type Player struct {
-	myCards []byte
+	myCards     []byte
+	myMachineId byte
 }
 
 func printCard(rank int, suit int) {

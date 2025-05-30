@@ -14,7 +14,6 @@ const (
 /* This struct must be aligned */
 type TokenRingPackage struct {
 	tokenBusy byte
-	src       byte
 	dest      byte
 	pkgType   byte
 	data      [DATA_SIZE]byte
@@ -23,11 +22,13 @@ type TokenRingPackage struct {
 var recvPkg TokenRingPackage
 var sendPkg TokenRingPackage
 
+// Who calls this automatically has id 0 ??
 func CreateRing(ipArr []string) {
 
 }
 
-func EnterRing(ip string) {
+// Return id of the caller machine ??
+func EnterRing(ip string) int {
 
 }
 
