@@ -5,7 +5,7 @@ const ()
 
 /* Other constants */
 const (
-	DATA_SIZE = 32
+	DATA_SIZE = 128 // dunno
 )
 
 /* This struct must be aligned */
@@ -16,20 +16,23 @@ type TokenRingPackage struct {
 	data      [DATA_SIZE]byte
 }
 
-func CreateRing() {
+// change if needed
+var recvPkg TokenRingPackage
+var sendPkg TokenRingPackage
+
+func CreateRing(ipArr []string) {
 
 }
 
-func EnterRing() {
+func EnterRing(ip string) {
 
 }
 
-func Send() {
+func Send(dest int, msgType int, bytes []byte) {
 
 }
 
-/* Block until valid pkg for the calling machine arrives. Forward pkg with
- * different destination */
-func Recv() {
+/* Block until valid pkg for the calling machine arrives. Always forward pkg */
+func Recv(bytes []byte, size uint) {
 
 }

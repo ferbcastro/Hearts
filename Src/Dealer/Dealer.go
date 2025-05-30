@@ -3,8 +3,11 @@ package main
 import (
 	"Src/TokenRing"
 	"os"
-	"time"
 )
+
+func InitDealer() {
+
+}
 
 func main() {
 	args := os.Args[1:]
@@ -13,9 +16,4 @@ func main() {
 	}
 
 	var socket TokenRing.SockDgram
-	TokenRing.InitSocket(&socket, args[0], args[1])
-	for {
-		TokenRing.Send(&socket, []byte("Hello World"))
-		time.Sleep(time.Second)
-	}
 }

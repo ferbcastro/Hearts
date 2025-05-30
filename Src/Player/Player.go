@@ -1,9 +1,9 @@
 package main
 
-import (
-	"fmt"
-)
+func InitPlayer() {
 
-func main () {
-	
+}
+
+func main() {
+
 }
