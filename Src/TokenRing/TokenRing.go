@@ -107,7 +107,7 @@ func (client *TokenRingClient ) setupNext(newLink string, next string, id int) i
   }
 
   err = client.send()
-  if err > 0 {
+  if err < 0 {
     log.Printf("Failed to send boot pkg")
     return err
   }
