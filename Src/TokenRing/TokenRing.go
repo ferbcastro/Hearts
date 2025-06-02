@@ -127,7 +127,7 @@ func (client *TokenRingClient) CreateRing(ipAddrs []string) int {
 
   for {
     for i := 1; i < len(ipAddrs); i++ {
-      client.setupNext(ipAddrs[i], ipAddrs[i+1],i)
+      client.setupNext(ipAddrs[i], ipAddrs[(i+1) % len(ipAddrs)],i)
     }
 
     client.sendPkg.PkgType = FORWARD
