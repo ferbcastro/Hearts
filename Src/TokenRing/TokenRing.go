@@ -130,7 +130,7 @@ func (client *TokenRingClient) CreateRing(ipAddrs []string) int {
       client.setupNext(ipAddrs[i], ipAddrs[i+1],i)
     }
 
-    client.sendPkg.pkgType = FORWARD
+    client.sendPkg.PkgType = FORWARD
     client.send()
     client.recv()
    
@@ -162,13 +162,13 @@ func (client *TokenRingClient) EnterRing(ip string) int {
         continue
       }
 
-      err = client.connect(bootd.next)
+      err = client.connect(bootd.Next)
       if err != 0 {
         log.Printf("Failed to connect to the next link")
         continue
       }
 
-      client.id = bootd.id
+      client.id = bootd.Id
     case RING_COMPLETE:
       isRingComplete = true
       break
