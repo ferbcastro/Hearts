@@ -24,11 +24,11 @@ const (
 
 /* This struct must be aligned */
 type TokenRingPackage struct {
-	tokenBusy byte
-	dest      byte
-	pkgType   byte
-  size      byte
-	data      [DATA_SIZE]byte
+	TokenBusy byte
+	Dest      byte
+	PkgType   byte
+  Size      byte
+	Data      [DATA_SIZE]byte
 }
 
 type TokenRingClient struct {
@@ -153,7 +153,7 @@ func (client *TokenRingClient) EnterRing(ip string) int {
       continue 
     }
 
-    switch client.recvPkg.pkgType {
+    switch client.recvPkg.PkgType {
     case BOOT:
       bootd := client.extractBootData()
 

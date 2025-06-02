@@ -6,9 +6,9 @@ import (
 )
 
 type bootData struct{
-  id      int    
-  newLink string 
-  next    string 
+  Id      int    
+  NewLink string 
+  Next    string 
 }
 
 /*
@@ -28,18 +28,18 @@ func (client *TokenRingClient) prepareBootPkg(newLink string, next string, id in
     return -1
   }
 
-  client.sendPkg.pkgType = BOOT
-  client.sendPkg.size = byte(unsafe.Sizeof(msg))
+  client.sendPkg.PkgType = BOOT
+  client.sendPkg.Size = byte(unsafe.Sizeof(msg))
 
   client.buffer.Reset()
-  client.buffer.Write(client.sendPkg.data[:])
+  client.buffer.Write(client.sendPkg.Data[:])
 
   return 0
 }
 
 func (client *TokenRingClient) extractBootData() *bootData {
   client.buffer.Reset()
-  client.buffer.Write(client.recvPkg.data[:])
+  client.buffer.Write(client.recvPkg.Data[:])
   var data bootData
 
   err := client.decoder.Decode(&data)
