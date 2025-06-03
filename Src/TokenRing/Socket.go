@@ -53,6 +53,7 @@ func (sock *SockDgram) Recv(arr []byte) int {
 		log.Printf("ReadFromUDP failed [%v] read [%v] bytes\n", err, numBytes)
 		return 0
 	}
+
 	return numBytes
 }
 
@@ -62,5 +63,6 @@ func (sock *SockDgram) Send(arr []byte) int {
 		log.Printf("WriteToUDP failed [%v] written [%v] bytes\n", err, numBytes)
 		return 0
 	}
+
 	return numBytes
 }

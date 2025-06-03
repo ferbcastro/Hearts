@@ -2,7 +2,7 @@ package main
 
 import (
 	"Src/TokenRing"
-	"os"
+  "fmt"
 )
 
 func InitDealer() {
@@ -10,10 +10,20 @@ func InitDealer() {
 }
 
 func main() {
-	args := os.Args[1:]
-	if len(args) < 2 {
-		return
-	}
 
-	var socket TokenRing.SockDgram
+	var client TokenRing.TokenRingClient
+
+  ips := make([]string, 4)
+  for i := 0; i < 4; i++ {
+    fmt.Print("Enter ip: ")
+    _, err := fmt.Scanln(&ips[i])
+    if err != nil {
+      fmt.Println("Error reading input:", err)
+      continue
+    }
+
+    fmt.Println("You typed:", ips[i])
+  }
+
+  client.CreateRing(ips)
 }
