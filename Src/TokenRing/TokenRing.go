@@ -22,15 +22,6 @@ const (
     FORWARD_PKG = 2
 )
 
-/* This struct must be aligned */
-type TokenRingPackage struct {
-    TokenBusy byte
-    Dest      byte
-    PkgType   byte
-    Size      byte
-    Data      [DATA_SIZE]byte
-}
-
 type TokenRingClient struct {
     id       int
     ipaddr   string
@@ -38,10 +29,6 @@ type TokenRingClient struct {
     sock     SockDgram
 
     ipAddrs  []string
-
-    buffer   bytes.Buffer
-    reader   bytes.Buffer
-    readBuffer []byte
 
     sendPkg  TokenRingPackage
     recvPkg  TokenRingPackage
@@ -57,8 +44,6 @@ func (client *TokenRingClient) init(ipaddr string) int {
         return -1
     }
 
-    // Allocate buffer for receiving incoming packets (enough for gob-encoded struct)
-    client.readBuffer = make([]byte, 1024)
 
     // Register all types that may be transmitted
     gob.Register(TokenRingPackage{})
@@ -103,7 +88,7 @@ func (client *TokenRingClient) initAsStarter(ipaddr string) int {
 // - id: the ID to assign to the new node
 func (client *TokenRingClient) setupNext(newLink string, next string, id int) int {
     // Prepare the boot package with the given information
-    err := client.prepareBootPkg(newLink, next, id)
+    err := client.sendPkg.prepareBootPkg(newLink, next, id)
     if err != 0 {
         log.Printf("Failed to prepare boot package for %s -> %s (ID %d)", newLink, next, id)
         return -1
@@ -186,13 +171,14 @@ func (client *TokenRingClient) EnterRing(ip string) int {
 
         switch client.recvPkg.PkgType {
         case BOOT:
-            bootd := client.extractBootData()
-            if bootd == nil {
+            var bootd bootData
+            err = client.recvPkg.decodeFromDataField(&bootd)
+            if err != 0 {
                 log.Println("Failed to extract boot data")
                 continue
             }
 
-            log.Printf("Received BOOT: %+v", *bootd)
+            log.Printf("Received BOOT: %+v", bootd)
 
             // If this boot package is not for this client, forward it
             if bootd.NewLink != client.ipaddr {
@@ -243,15 +229,15 @@ func (client *TokenRingClient) recv() int {
 
 // send encodes sendPkg and writes it to the socket.
 func (client *TokenRingClient) send() int {
-    client.buffer.Reset()
+    client.sendPkg.buffer.Reset()
 
-    encoder := gob.NewEncoder(&client.buffer)
+    encoder := gob.NewEncoder(&client.sendPkg.buffer)
     if err := encoder.Encode(&client.sendPkg); err != nil {
         log.Printf("TokenRingClient: failed to encode package: %v", err)
         return -1
     }
 
-    ret := client.sock.Send(client.buffer.Bytes())
+    ret := client.sock.Send(client.sendPkg.buffer.Bytes())
     if ret <= 0 {
         log.Println("TokenRingClient: failed to send package")
         return -1
@@ -267,6 +253,7 @@ func (client *TokenRingClient) forward() int {
 }
 
 func Send(dest int, msgType int, data any) {
+
 
 }
 
