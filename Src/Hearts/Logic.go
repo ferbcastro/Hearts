@@ -1,5 +1,13 @@
 package Hearts
 
+import (
+	"Src/TokenRing"
+	"fmt"
+)
+
+const MAX_CARDS = 13
+const NUM_PLAYERS = 4
+
 const (
 	clubs = iota
 	hearts
@@ -41,71 +49,65 @@ var ranks = []string{
 	"𝔞𝔠𝔢",
 }
 
-var cards = []byte{
-	(two << 4) + (clubs),
-	(three << 4) + (clubs),
-	(four << 4) + (clubs),
-	(five << 4) + (clubs),
-	(six << 4) + (clubs),
-	(seven << 4) + (clubs),
-	(eight << 4) + (clubs),
-	(nine << 4) + (clubs),
-	(ten << 4) + (clubs),
-	(jack << 4) + (clubs),
-	(queen << 4) + (clubs),
-	(king << 4) + (clubs),
-	(ace << 4) + (clubs),
-	(two << 4) + (diamonds),
-	(three << 4) + (diamonds),
-	(four << 4) + (diamonds),
-	(five << 4) + (diamonds),
-	(six << 4) + (diamonds),
-	(seven << 4) + (diamonds),
-	(eight << 4) + (diamonds),
-	(nine << 4) + (diamonds),
-	(ten << 4) + (diamonds),
-	(jack << 4) + (diamonds),
-	(queen << 4) + (diamonds),
-	(king << 4) + (diamonds),
-	(ace << 4) + (diamonds),
-	(two << 4) + (spades),
-	(three << 4) + (spades),
-	(four << 4) + (spades),
-	(five << 4) + (spades),
-	(six << 4) + (spades),
-	(seven << 4) + (spades),
-	(eight << 4) + (spades),
-	(nine << 4) + (spades),
-	(ten << 4) + (spades),
-	(jack << 4) + (spades),
-	(queen << 4) + (spades),
-	(king << 4) + (spades),
-	(ace << 4) + (spades),
-	(two << 4) + (hearts),
-	(three << 4) + (hearts),
-	(four << 4) + (hearts),
-	(five << 4) + (hearts),
-	(six << 4) + (hearts),
-	(seven << 4) + (hearts),
-	(eight << 4) + (hearts),
-	(nine << 4) + (hearts),
-	(ten << 4) + (hearts),
-	(jack << 4) + (hearts),
-	(queen << 4) + (hearts),
-	(king << 4) + (hearts),
-	(ace << 4) + (hearts),
+type card struct {
+	suit int
+	rank int
+}
+
+type message struct {
+	msgT  int
+	cards [MAX_CARDS]card
 }
 
 type Player struct {
-	myCards []byte
+	ringClient    TokenRing.TokenRingClient
+	cards         []byte
+	clockWiseIds  []byte
+	positionInIds byte
 }
 
 func printCard(rank int, suit int) {
 
 }
 
-func (player *Player) InitPlayer() {
+func (player *Player) InitPlayer(isRingCreator bool) {
+	var myId byte
+	var ids []byte
+	var ip string
 
+	if isRingCreator == true {
+		player.positionInIds = 0
+		/* read ips */
+		ips := make([]string, NUM_PLAYERS)
+		fmt.Print("Enter your ip: ")
+		fmt.Scanln(&ips[player.positionInIds])
+		fmt.Println("Now enter other players' ip in clockwise order")
+		for i := 1; i < NUM_PLAYERS; i++ {
+			fmt.Print("Enter ip: ")
+			fmt.Scanln(&ips[i])
+		}
+		/* creat ring */
+		ids = player.ringClient.CreateRing(ips)
+		player.clockWiseIds = ids
+		/* broadcast ids */
+		for i := 1; i < NUM_PLAYERS; i++ {
+			player.ringClient.Send(ids[i], ids)
+		}
+	} else {
+		/* enter ring */
+		fmt.Print("Enter your ip: ")
+		fmt.Scanln(&ip)
+		myId = player.ringClient.EnterRing(ip)
+		/* read ids */
+		player.ringClient.Recv(&player.clockWiseIds)
+		/* discover position */
+		for i := byte(1); i < NUM_PLAYERS; i++ {
+			if player.clockWiseIds[i] == myId {
+				player.positionInIds = i
+				break
+			}
+		}
+	}
 }
 
 /* Should be called once by Dealer */
