@@ -16,12 +16,6 @@ type TokenRingPackage struct {
     buffer    bytes.Buffer // unexported field to use for enconding and decoding operations
 }
 
-type bootData struct{
-    Id      int    
-    NewLink string 
-    Next    string 
-}
-
 func (pkg *TokenRingPackage) encodeIntoDataField(s any) int {
 
     pkg.buffer.Reset()
@@ -48,24 +42,6 @@ func (pkg *TokenRingPackage) decodeFromDataField(s any) int {
         log.Printf("Failed decode data field [%v]", err)
         return -1
     }
-
-    return 0
-}
-
-
-/*
-The Boot Package:
-In the data field we will have the following data
-- id - id granted to the receiver
-- newLink - the ip addr of the receiver, boot pkgs dont use dest field
-- next - ip addr of the next computer in the ring
-*/
-func (pkg *TokenRingPackage) prepareBootPkg(newLink string, next string, id int) int {
-
-    pkg.PkgType = BOOT
-    msg := bootData{id, newLink, next}
-
-    pkg.encodeIntoDataField(msg) 
 
     return 0
 }
