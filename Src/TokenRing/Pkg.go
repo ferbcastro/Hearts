@@ -9,7 +9,9 @@ import (
 /* This struct must be aligned */
 type TokenRingPackage struct {
     TokenBusy byte
+    Src       byte
     Dest      byte
+    Serial    byte
     PkgType   byte
     Size      byte
     Data      [DATA_SIZE]byte
