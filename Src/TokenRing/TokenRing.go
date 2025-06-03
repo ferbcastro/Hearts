@@ -88,19 +88,20 @@ func (client *TokenRingClient) initAsStarter(ipaddr string) int {
 // - id: the ID to assign to the new node
 func (client *TokenRingClient) setupNext(newLink string, next string, id int) int {
     // Prepare the boot package with the given information
-    err := client.sendPkg.prepareBootPkg(newLink, next, id)
-    if err != 0 {
+    //err := client.sendPkg.prepareBootPkg(newLink, next, id)
+    err := client.Send(0, BOOT,  bootData{ newLink, next, id})
+    if err <= 0 {
         log.Printf("Failed to prepare boot package for %s -> %s (ID %d)", newLink, next, id)
         return -1
     }
-
+/*
     // Send the boot package over the socket
     err = client.send()
     if err <= 0 {
         log.Printf("Failed to send boot package to %s", newLink)
         return -1
     }
-
+*/
     return 0
 }
 
@@ -252,9 +253,22 @@ func (client *TokenRingClient) forward() int {
     return client.send()
 }
 
-func Send(dest int, msgType int, data any) {
+func (client *TokenRingClient) Send(dest int, msgType int, data any) int {
 
+  client.sendPkg.PkgType = msgType 
+  client.sendPkg.Dest = dest
+  err := client.sendPkg.encodeIntoDataField(data)
+  if err != 0 {
+    log.Printf("Failed to encode data into dataField")
+    return -1
+  }
 
+  err = client.send()
+  if err <= 0 {
+    log.Printf("Failed to encode data into dataField")
+  }
+  
+  return err
 }
 
 /* Block until valid pkg for the calling machine arrives */
