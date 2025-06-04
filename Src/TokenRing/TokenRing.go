@@ -89,20 +89,21 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 
 	if client.waitForToken {
 		client.Recv(nil)
+	} else {
 		client.waitForToken = true
-	}
+
+    }
 
 	client.prepareSendPkg(dest, DATA, data)
 
 	var err int
 	for {
-
 		err = client.send()
 		if err <= 0 {
 			log.Printf("Failed to send data ")
 			return -1
         }
-       
+
 		// wait for the pkg to comeback
 		err = client.recv()
 		if err <= 0 {
@@ -118,15 +119,9 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 				log.Printf("Failed to send data ")
 				return -1
 			}
-            err = client.recv()
-            if err <= 0 {
-				log.Printf("Failed to send data ")
-				return -1
-			}
-			break
+            break
 		}
 	}
-
 	return err
 }
 
