@@ -12,28 +12,28 @@ const TOTAL_CARDS = 52
 const NUM_PLAYERS = 4
 
 const (
-	clubs = iota
-	hearts
-	spades
-	diamonds
+	CLUBS = iota
+	HEARTS
+	SPADES
+	DIAMONDS
 )
 
 var suits = []string{"♣", "♥", "♠", "♦"}
 
 const (
-	two = iota
-	three
-	four
-	five
-	six
-	seven
-	eight
-	nine
-	ten
-	jack
-	queen
-	king
-	ace
+	TWO = iota
+	THREE
+	FOUR
+	FIVE
+	SIX
+	SEVEN
+	EIGHT
+	NINE
+	TEN
+	JACK
+	QUEEN
+	KING
+	ACE
 )
 
 var ranks = []string{
@@ -57,6 +57,8 @@ type card struct {
 	rank uint8
 }
 
+type deck []card
+
 /* Message types */
 const (
 	CARDS = iota
@@ -64,33 +66,40 @@ const (
 	GAME_WINNER
 	POINTS_QUERY
 	ROUND_LOSER
+	HEARTS_BROKEN
+	BEGIN_GAME
 )
 
 type message struct {
-	msgType  uint8
-	numCards uint8
-	cards    [MAX_CARDS_PER_ROUND]card
+	msgType        uint8
+	cards          [MAX_CARDS_PER_ROUND]card
+	numPlayedCards uint8
 }
 
 type Player struct {
-	ringClient    TokenRing.TokenRingClient
-	cards         [MAX_CARDS_PER_ROUND]card
-	clockWiseIds  []uint8
-	cardsCount    uint8
-	positionInIds uint8
-	isCardDealer  bool
-	isRoundMaster bool
-	isGameActive  bool
-	points        int
-	msg           message
+	ringClient     TokenRing.TokenRingClient
+	cards          [MAX_CARDS_PER_ROUND]card
+	clockWiseIds   []uint8
+	cardsCount     uint8
+	positionInIds  uint8
+	points         int
+	msg            message
+	isRoundMaster  bool
+	isCardDealer   bool
+	isGameActive   bool
+	isHeartsBroken bool
 }
 
-func incModN(n int, num int) int {
-	return (num + 1) % n
+func (c card) isCardEqual(rank, suit byte) bool {
+	return (c.rank == rank && c.suit == suit)
 }
 
 func printCards(cards []card) {
 
+}
+
+func (m message) printUnexpectedType() {
+	println("Message type not expected [%v] in [Play]\n", m.msgType)
 }
 
 func (player *Player) InitPlayer(isRingCreator bool) {
@@ -137,6 +146,7 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 	}
 	player.points = 0
 	player.cardsCount = 0
+	player.isHeartsBroken = false
 }
 
 /* Should be called once by card Dealer */
@@ -150,53 +160,76 @@ func (player *Player) DealCards() {
 	})
 
 	var i int
-	j := 0
-	pos := incModN(NUM_PLAYERS, int(player.positionInIds))
-	/* send cards to players */
-	for i = 0; i < TOTAL_CARDS-MAX_CARDS_PER_ROUND; i++ {
+	var j int
+	var idNextRoundHead uint8
+	pos := player.positionInIds
+	for i = 0; i < TOTAL_CARDS; i++ {
+		if (i%MAX_CARDS_PER_ROUND == 0) && (i != 0) {
+			if i == MAX_CARDS_PER_ROUND { /* dealer cards */
+				player.cards = player.msg.cards
+			} else { /* other players' cards */
+				player.msg.msgType = CARDS
+				player.ringClient.Send(player.clockWiseIds[pos], player.msg)
+			}
+			pos = (pos + 1) % NUM_PLAYERS
+		}
+
+		j = i / MAX_CARDS_PER_ROUND
 		player.msg.cards[j].suit = uint8(numbers[i] / len(ranks))
 		player.msg.cards[j].rank = uint8(numbers[i] % len(ranks))
-		if j == MAX_CARDS_PER_ROUND-1 {
-			j = 0
-			player.msg.msgType = CARDS
-			player.ringClient.Send(player.clockWiseIds[pos], player.msg)
-			pos = incModN(NUM_PLAYERS, int(player.positionInIds))
-		} else {
-			j++
+		if player.msg.cards[j].isCardEqual(TWO, CLUBS) {
+			idNextRoundHead = player.clockWiseIds[pos]
 		}
 	}
-	/* set Dealer's cards */
-	for i := 0; i < MAX_CARDS_PER_ROUND; i++ {
-		player.cards[i].suit = uint8(numbers[i] / len(ranks))
-		player.cards[i].rank = uint8(numbers[i] % len(ranks))
-		if player.cards[i].suit == clubs && player.cards[i].rank == two {
-			player.isRoundMaster = true
-		}
+
+	if idNextRoundHead == player.clockWiseIds[player.positionInIds] {
+		player.isRoundMaster = true
+	} else {
+		player.msg.msgType = BEGIN_GAME
+		player.ringClient.Send(idNextRoundHead, player.msg)
 	}
 }
 
-/* Should be called once by players (except Dealer)
- * Return true if whoever got cards will be first player */
+/* Should be called once by players (except Dealer) */
 func (player *Player) GetCards() {
 	player.ringClient.Recv(&player.msg)
 	if player.msg.msgType != CARDS {
 		log.Printf("Message type not expected [%v] in [GetCards]\n", player.msg.msgType)
 	}
 	player.cards = player.msg.cards
-}
-
-/* Show cards to player and let they choose */
-func (player *Player) Play() {
-	if player.isRoundMaster == true {
-
-	} else {
-		if player.msg.msgType != NEXT {
-			println("Message type not expected [%v] in [Play]\n", player.msg.msgType)
+	for i := 0; i < MAX_CARDS_PER_ROUND; i++ {
+		if player.cards[i].isCardEqual(TWO, CLUBS) {
+			player.isRoundMaster = true
+		}
+		player.ringClient.Recv(&player.msg)
+		if player.msg.msgType != BEGIN_GAME {
+			player.msg.printUnexpectedType()
 		}
 	}
 }
 
+/* Show cards to player and let they choose */
+func (player *Player) Play() {
+	printCards(player.cards[:])
+	if player.isRoundMaster == true {
+		fmt.Printf("You begin round!", player.positionInIds)
+		if player.isHeartsBroken {
+
+		}
+	} else {
+		if player.msg.msgType != NEXT {
+			player.msg.printUnexpectedType()
+		}
+	}
+}
+
+/* Should be called by round master */
 func (player *Player) InformRoundLoser() {
+
+}
+
+/* Should be called by round master */
+func (player *Player) WaitForAllCards() {
 
 }
 
