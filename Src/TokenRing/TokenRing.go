@@ -127,34 +127,37 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 /* if passed nil recv waits for the token */
 func (client *TokenRingClient) Recv(out any) {
 
-	if client.hasToForward {
-		client.forward()
-		client.hasToForward = false
-	}
+    if client.hasToForward {
+        client.forward()
+        client.hasToForward = false
+    }
 
-	for {
-		err := client.recv()
-		if err <= 0 {
-			log.Printf("Failed to receive a pk\n")
-			continue
-		}
+    for {
+        err := client.recv()
+        if err <= 0 {
+            log.Printf("Failed to receive a pk\n")
+            continue
+        }
 
-		if out == nil {
-			if client.recvPkg.TokenBusy == 0 {
-				client.sendPkg.TokenBusy = 1
-				return
-			}
-		}
+        log.Printf("pkg received: %d\n", client.recvPkg.Dest)
 
-		if client.recvPkg.Dest == client.id {
-			err = client.recvPkg.decodeFromDataField(out)
-			if err != 0 {
-				log.Printf("Failed to decode pkg data\n")
-				continue
-			}
-			client.hasToForward = true
-			return
-		}
-		client.forward()
-	}
+        if client.recvPkg.TokenBusy == 0 {
+            if out == nil {
+                client.sendPkg.TokenBusy = 1
+                return
+            }
+        } else {
+            if client.recvPkg.Dest == client.id {
+                err = client.recvPkg.decodeFromDataField(out)
+                if err != 0 {
+                    log.Printf("Failed to decode pkg data\n")
+                    continue
+                }
+                client.hasToForward = true
+                return
+            }
+        }
+
+        client.forward()
+    }
 }
