@@ -14,7 +14,6 @@ func usage() {
 
 func main() {
 	var player Hearts.Player
-	var cardDeliver bool
 
 	args := os.Args[1:]
 	if len(args) < 1 {
@@ -25,10 +24,28 @@ func main() {
 	switch args[0] {
 	case "-c":
 		player.InitPlayer(true)
-		cardDeliver = true
 	case "-e":
 		player.InitPlayer(false)
-		cardDeliver = false
 	}
 
+	for {
+		if !player.IsGameActive() {
+			println("Game ended!")
+			break
+		}
+
+		if player.NoCardsLeft() {
+			if player.IsCardDealer() {
+				player.DealCards()
+			} else {
+				player.GetCards()
+			}
+		}
+
+		player.Play()
+		player.WaitForResult()
+		if player.IsRoundMaster() {
+			player.InformRoundLoser()
+		}
+	}
 }

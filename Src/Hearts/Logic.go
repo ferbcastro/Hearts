@@ -3,9 +3,12 @@ package Hearts
 import (
 	"Src/TokenRing"
 	"fmt"
+	"log"
+	"math/rand"
 )
 
-const MAX_CARDS = 13
+const MAX_CARDS_PER_ROUND = 13
+const TOTAL_CARDS = 52
 const NUM_PLAYERS = 4
 
 const (
@@ -54,19 +57,38 @@ type card struct {
 	rank int
 }
 
+/* Message types */
+const (
+	CARDS = iota
+	NEXT
+	GAME_WINNER
+	POINTS_QUERY
+	ROUND_LOSER
+)
+
 type message struct {
-	msgT  int
-	cards [MAX_CARDS]card
+	msgType byte
+	cards   [MAX_CARDS_PER_ROUND]card
 }
 
 type Player struct {
 	ringClient    TokenRing.TokenRingClient
-	cards         []byte
+	cards         [MAX_CARDS_PER_ROUND]card
 	clockWiseIds  []byte
+	cardsCount    byte
 	positionInIds byte
+	isCardDealer  bool
+	isRoundMaster bool
+	isGameActive  bool
+	points        int
+	msg           message
 }
 
-func printCard(rank int, suit int) {
+func incModN(n int, num int) int {
+	return (num + 1) % n
+}
+
+func printCards(cards []card) {
 
 }
 
@@ -93,6 +115,8 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 		for i := 1; i < NUM_PLAYERS; i++ {
 			player.ringClient.Send(ids[i], ids)
 		}
+		/* should call DealerCard() */
+		player.isCardDealer = true
 	} else {
 		/* enter ring */
 		fmt.Print("Enter your ip: ")
@@ -107,21 +131,71 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 				break
 			}
 		}
+		/* should call GetCards() */
+		player.isCardDealer = false
+	}
+	player.points = 0
+	player.cardsCount = 0
+}
+
+/* Should be called once by card Dealer */
+func (player *Player) DealCards() {
+	var numbers []int
+	for i := 0; i < TOTAL_CARDS; i++ {
+		numbers = append(numbers, i)
+	}
+	rand.Shuffle(len(numbers), func(i, j int) {
+		numbers[i], numbers[j] = numbers[j], numbers[i]
+	})
+
+	var i int
+	j := 0
+	pos := incModN(NUM_PLAYERS, int(player.positionInIds))
+	/* send cards to players */
+	for i = 0; i < TOTAL_CARDS-MAX_CARDS_PER_ROUND; i++ {
+		player.msg.cards[j].suit = numbers[i] / len(ranks)
+		player.msg.cards[j].rank = numbers[i] % len(ranks)
+		if j == MAX_CARDS_PER_ROUND-1 {
+			j = 0
+			player.msg.msgType = CARDS
+			player.ringClient.Send(player.clockWiseIds[pos], player.msg)
+			pos = incModN(NUM_PLAYERS, int(player.positionInIds))
+		} else {
+			j++
+		}
+	}
+	/* set Dealer's cards */
+	for i := 0; i < MAX_CARDS_PER_ROUND; i++ {
+		player.cards[i].suit = numbers[i] / len(ranks)
+		player.cards[i].rank = numbers[i] % len(ranks)
+		if player.cards[i].suit == clubs && player.cards[i].rank == two {
+			player.isRoundMaster = true
+		}
 	}
 }
 
-/* Should be called once by Dealer */
-func (player *Player) DeliverCards() {
-
-}
-
-/* Should be called once by players (except Dealer) */
+/* Should be called once by players (except Dealer)
+ * Return true if whoever got cards will be first player */
 func (player *Player) GetCards() {
-
+	player.ringClient.Recv(&player.msg)
+	if player.msg.msgType != CARDS {
+		log.Printf("Message type not expected [%v] in [GetCards]\n", player.msg.msgType)
+	}
+	player.cards = player.msg.cards
 }
 
-/* Show cards to player and let thy choose */
+/* Show cards to player and let they choose */
 func (player *Player) Play() {
+	if player.isRoundMaster == true {
+
+	} else {
+		if player.msg.msgType != NEXT {
+			println("Message type not expected [%v] in [Play]\n", player.msg.msgType)
+		}
+	}
+}
+
+func (player *Player) InformRoundLoser() {
 
 }
 
@@ -130,7 +204,23 @@ func (player *Player) AnounceWinner() {
 
 }
 
-/* Players  */
+/* Players */
 func (player *Player) WaitForResult() {
 
+}
+
+func (player *Player) IsRoundMaster() bool {
+	return player.isRoundMaster
+}
+
+func (player *Player) IsGameActive() bool {
+	return player.isGameActive
+}
+
+func (player *Player) IsCardDealer() bool {
+	return player.isCardDealer
+}
+
+func (player *Player) NoCardsLeft() bool {
+	return player.cardsCount == 0
 }
