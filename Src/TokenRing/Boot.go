@@ -108,6 +108,7 @@ func (client *TokenRingClient) CreateRing(ipAddrs []string) []byte {
 	// Signal that the ring is now complete
 	client.sendPkg.PkgType = RING_COMPLETE
 	client.send()
+	client.recv()
 
 	return ids
 }

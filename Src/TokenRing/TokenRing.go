@@ -41,6 +41,7 @@ type TokenRingClient struct {
 // recv reads a package from the socket and decodes it into recvPkg.
 func (client *TokenRingClient) recv() int {
 	buffer := make([]byte, 1024)
+    client.recvPkg = TokenRingPackage{}
 	ret := client.sock.Recv(buffer)
 	if ret <= 0 {
 		log.Println("TokenRingClient: failed to receive package")
@@ -95,12 +96,13 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 
 	var err int
 	for {
+
 		err = client.send()
 		if err <= 0 {
 			log.Printf("Failed to send data ")
 			return -1
-		}
-
+        }
+       
 		// wait for the pkg to comeback
 		err = client.recv()
 		if err <= 0 {
@@ -113,6 +115,11 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 			client.sendPkg.TokenBusy = 0
 			err = client.send()
 			if err <= 0 {
+				log.Printf("Failed to send data ")
+				return -1
+			}
+            err = client.recv()
+            if err <= 0 {
 				log.Printf("Failed to send data ")
 				return -1
 			}
@@ -139,7 +146,7 @@ func (client *TokenRingClient) Recv(out any) {
             continue
         }
 
-        log.Printf("pkg received: %d\n", client.recvPkg.Dest)
+        //log.Printf("pkg received: %+v\n", client.recvPkg)
 
         if client.recvPkg.TokenBusy == 0 {
             if out == nil {
