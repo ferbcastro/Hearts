@@ -53,8 +53,8 @@ var ranks = []string{
 }
 
 type card struct {
-	suit int
-	rank int
+	suit uint8
+	rank uint8
 }
 
 /* Message types */
@@ -67,16 +67,17 @@ const (
 )
 
 type message struct {
-	msgType byte
-	cards   [MAX_CARDS_PER_ROUND]card
+	msgType  uint8
+	numCards uint8
+	cards    [MAX_CARDS_PER_ROUND]card
 }
 
 type Player struct {
 	ringClient    TokenRing.TokenRingClient
 	cards         [MAX_CARDS_PER_ROUND]card
-	clockWiseIds  []byte
-	cardsCount    byte
-	positionInIds byte
+	clockWiseIds  []uint8
+	cardsCount    uint8
+	positionInIds uint8
 	isCardDealer  bool
 	isRoundMaster bool
 	isGameActive  bool
@@ -153,8 +154,8 @@ func (player *Player) DealCards() {
 	pos := incModN(NUM_PLAYERS, int(player.positionInIds))
 	/* send cards to players */
 	for i = 0; i < TOTAL_CARDS-MAX_CARDS_PER_ROUND; i++ {
-		player.msg.cards[j].suit = numbers[i] / len(ranks)
-		player.msg.cards[j].rank = numbers[i] % len(ranks)
+		player.msg.cards[j].suit = uint8(numbers[i] / len(ranks))
+		player.msg.cards[j].rank = uint8(numbers[i] % len(ranks))
 		if j == MAX_CARDS_PER_ROUND-1 {
 			j = 0
 			player.msg.msgType = CARDS
@@ -166,8 +167,8 @@ func (player *Player) DealCards() {
 	}
 	/* set Dealer's cards */
 	for i := 0; i < MAX_CARDS_PER_ROUND; i++ {
-		player.cards[i].suit = numbers[i] / len(ranks)
-		player.cards[i].rank = numbers[i] % len(ranks)
+		player.cards[i].suit = uint8(numbers[i] / len(ranks))
+		player.cards[i].rank = uint8(numbers[i] % len(ranks))
 		if player.cards[i].suit == clubs && player.cards[i].rank == two {
 			player.isRoundMaster = true
 		}
