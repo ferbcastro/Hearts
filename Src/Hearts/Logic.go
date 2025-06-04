@@ -3,7 +3,6 @@ package Hearts
 import (
 	"Src/TokenRing"
 	"fmt"
-	"log"
 	"math/rand"
 )
 
@@ -12,13 +11,13 @@ const TOTAL_CARDS = 52
 const NUM_PLAYERS = 4
 
 const (
-	CLUBS = iota
-	HEARTS
+	DIAMONDS = iota
 	SPADES
-	DIAMONDS
+	HEARTS
+	CLUBS
 )
 
-var suits = []string{"♣", "♥", "♠", "♦"}
+var suits = []string{"♦", "♠", "♥", "♣"}
 
 const (
 	TWO = iota
@@ -57,8 +56,6 @@ type card struct {
 	rank uint8
 }
 
-type deck []card
-
 /* Message types */
 const (
 	CARDS = iota
@@ -66,39 +63,81 @@ const (
 	GAME_WINNER
 	POINTS_QUERY
 	ROUND_LOSER
+	CONTINUE_GAME
 	HEARTS_BROKEN
 	BEGIN_GAME
 )
 
 type message struct {
-	msgType        uint8
 	cards          [MAX_CARDS_PER_ROUND]card
+	msgType        uint8
 	numPlayedCards uint8
+	earnedPoints   uint8
+}
+
+type deck struct {
+	cards     [MAX_CARDS_PER_ROUND]card
+	used      [MAX_CARDS_PER_ROUND]bool
+	cardsLeft uint8
 }
 
 type Player struct {
 	ringClient     TokenRing.TokenRingClient
-	cards          [MAX_CARDS_PER_ROUND]card
 	clockWiseIds   []uint8
-	cardsCount     uint8
 	positionInIds  uint8
-	points         int
+	deck           deck
 	msg            message
+	points         int
 	isRoundMaster  bool
 	isCardDealer   bool
 	isGameActive   bool
 	isHeartsBroken bool
 }
 
-func (c card) isCardEqual(rank, suit byte) bool {
+func (d *deck) initDeck(myCards [MAX_CARDS_PER_ROUND]card) {
+	d.cards = myCards
+	d.cardsLeft = MAX_CARDS_PER_ROUND
+	for i := range d.used {
+		d.used[i] = false
+	}
+}
+
+func (d *deck) getCardFromDeck(idx int) int {
+	j := 0 /* first index is 1 */
+	for i := range d.used {
+		if d.used[i] == false {
+			j++
+		}
+		if j == idx {
+			return i
+		}
+	}
+	return -1
+}
+
+func (d *deck) setCardUsed(idx int) {
+	d.used[idx] = true
+}
+
+func (c *card) isSuitEqual(suit byte) bool {
+	return (c.suit == suit)
+}
+
+func (c *card) isCardEqual(rank, suit byte) bool {
 	return (c.rank == rank && c.suit == suit)
 }
 
-func printCards(cards []card) {
-
+func printDeck(d *deck) {
+	fmt.Print("Your cards: ")
+	for i := 0; i < MAX_CARDS_PER_ROUND; i++ {
+		if d.used[i] == false {
+			fmt.Printf("%v: %v%v ", i, ranks[d.cards[i].rank], suits[d.cards[i].suit])
+		}
+	}
+	fmt.Printf("\n")
 }
 
-func (m message) printUnexpectedType() {
+func (m *message) printUnexpectedType() {
 	println("Message type not expected [%v] in [Play]\n", m.msgType)
 }
 
@@ -145,7 +184,7 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 		player.isCardDealer = false
 	}
 	player.points = 0
-	player.cardsCount = 0
+	player.deck.cardsLeft = 0
 	player.isHeartsBroken = false
 }
 
@@ -159,14 +198,15 @@ func (player *Player) DealCards() {
 		numbers[i], numbers[j] = numbers[j], numbers[i]
 	})
 
-	var i int
+	fmt.Println("Cards shuffled! Distributing...")
+
 	var j int
 	var idNextRoundHead uint8
 	pos := player.positionInIds
-	for i = 0; i < TOTAL_CARDS; i++ {
+	for i := 0; i < TOTAL_CARDS; i++ {
 		if (i%MAX_CARDS_PER_ROUND == 0) && (i != 0) {
 			if i == MAX_CARDS_PER_ROUND { /* dealer cards */
-				player.cards = player.msg.cards
+				player.deck.initDeck(player.msg.cards)
 			} else { /* other players' cards */
 				player.msg.msgType = CARDS
 				player.ringClient.Send(player.clockWiseIds[pos], player.msg)
@@ -174,7 +214,7 @@ func (player *Player) DealCards() {
 			pos = (pos + 1) % NUM_PLAYERS
 		}
 
-		j = i / MAX_CARDS_PER_ROUND
+		j = i % MAX_CARDS_PER_ROUND
 		player.msg.cards[j].suit = uint8(numbers[i] / len(ranks))
 		player.msg.cards[j].rank = uint8(numbers[i] % len(ranks))
 		if player.msg.cards[j].isCardEqual(TWO, CLUBS) {
@@ -188,48 +228,79 @@ func (player *Player) DealCards() {
 		player.msg.msgType = BEGIN_GAME
 		player.ringClient.Send(idNextRoundHead, player.msg)
 	}
+
+	fmt.Println("Players all set!")
 }
 
 /* Should be called once by players (except Dealer) */
 func (player *Player) GetCards() {
 	player.ringClient.Recv(&player.msg)
 	if player.msg.msgType != CARDS {
-		log.Printf("Message type not expected [%v] in [GetCards]\n", player.msg.msgType)
+		player.msg.printUnexpectedType()
 	}
-	player.cards = player.msg.cards
+	player.deck.initDeck(player.msg.cards)
 	for i := 0; i < MAX_CARDS_PER_ROUND; i++ {
-		if player.cards[i].isCardEqual(TWO, CLUBS) {
+		if player.deck.cards[i].isCardEqual(TWO, CLUBS) {
 			player.isRoundMaster = true
-		}
-		player.ringClient.Recv(&player.msg)
-		if player.msg.msgType != BEGIN_GAME {
-			player.msg.printUnexpectedType()
+			player.ringClient.Recv(&player.msg)
+			if player.msg.msgType != BEGIN_GAME {
+				player.msg.printUnexpectedType()
+			}
+			break
 		}
 	}
 }
 
 /* Show cards to player and let they choose */
 func (player *Player) Play() {
-	printCards(player.cards[:])
 	if player.isRoundMaster == true {
-		fmt.Printf("You begin round!", player.positionInIds)
-		if player.isHeartsBroken {
-
-		}
+		fmt.Println("You begin round!")
 	} else {
+		player.ringClient.Recv(&player.msg)
 		if player.msg.msgType != NEXT {
 			player.msg.printUnexpectedType()
 		}
+		fmt.Println("Your turn!")
 	}
-}
 
-/* Should be called by round master */
-func (player *Player) InformRoundLoser() {
+	/* select valid card */
+	printDeck(&player.deck)
+	cardIdx := 0
+	var cardIt int
+	for {
+		fmt.Print("Choose a card from your deck: ")
+		fmt.Scanln(&cardIdx)
+		cardIt = player.deck.getCardFromDeck(cardIdx)
+		if cardIt == -1 {
+			fmt.Println("Invalid card!")
+			continue
+		} else {
+			if player.isRoundMaster && !player.isHeartsBroken &&
+				player.deck.cards[cardIt].isSuitEqual(HEARTS) {
+				fmt.Println("Invalid card!")
+				continue
+			}
+		}
+		fmt.Println("Ok!")
+		player.deck.setCardUsed(cardIt)
+		break
+	}
+	fmt.Printf("\n\n")
+
+	/* send valid card to next */
 
 }
 
 /* Should be called by round master */
 func (player *Player) WaitForAllCards() {
+	player.ringClient.Recv(&player.msg)
+	if player.msg.msgType != NEXT {
+		player.msg.printUnexpectedType()
+	}
+}
+
+/* Should be called by round master */
+func (player *Player) InformRoundLoser() {
 
 }
 
@@ -256,5 +327,5 @@ func (player *Player) IsCardDealer() bool {
 }
 
 func (player *Player) NoCardsLeft() bool {
-	return player.cardsCount == 0
+	return player.deck.cardsLeft == 0
 }
