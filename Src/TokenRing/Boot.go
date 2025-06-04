@@ -55,7 +55,7 @@ func (client *TokenRingClient) initAsStarter(ipaddr string) int {
 		return -1
 	}
 
-	client.id = 0 
+	client.id = 0
 	client.waitForToken = false
 
 	return 0
@@ -63,53 +63,53 @@ func (client *TokenRingClient) initAsStarter(ipaddr string) int {
 
 // CreateRing initializes the Token Ring network by connecting all clients in a circular list.
 // The caller is assumed to be the starter and assigned ID 0.
-func (client *TokenRingClient) CreateRing(ipAddrs []string) ([]byte) {
-  client.ipAddrs = ipAddrs
+func (client *TokenRingClient) CreateRing(ipAddrs []string) []byte {
+	client.ipAddrs = ipAddrs
 
 	ids := make([]byte, len(ipAddrs))
 	ids[0] = 0
-  // Initialize the starter (caller) with ID 0 and bind to ipAddrs[0]
-  err := client.initAsStarter(ipAddrs[0])
-  if err != 0 {
-    log.Printf("Failed to init Token Ring starter: %v\n", err)
-    return nil 
-  }
+	// Initialize the starter (caller) with ID 0 and bind to ipAddrs[0]
+	err := client.initAsStarter(ipAddrs[0])
+	if err != 0 {
+		log.Printf("Failed to init Token Ring starter: %v\n", err)
+		return nil
+	}
 
-  for {
-    // Setup the ring by bootstrapping each client with its ID and next IP
-    for i := 1; i < len(ipAddrs); i++ {
+	for {
+		// Setup the ring by bootstrapping each client with its ID and next IP
+		for i := 1; i < len(ipAddrs); i++ {
 			ids[i] = byte(i)
 
-      nextIdx := (i + 1) % len(ipAddrs)
-      log.Printf("Setting up link: %s (ID %d) -> %s\n", ipAddrs[i], i, ipAddrs[nextIdx])
+			nextIdx := (i + 1) % len(ipAddrs)
+			log.Printf("Setting up link: %s (ID %d) -> %s\n", ipAddrs[i], i, ipAddrs[nextIdx])
 
-      data := bootData{byte(i), ipAddrs[i], ipAddrs[nextIdx]}
+			data := bootData{byte(i), ipAddrs[i], ipAddrs[nextIdx]}
 			client.prepareSendPkg(0, BOOT, data)
-      err := client.send()
-      if err <= 0 {
-        log.Printf("Failed to prepare boot package for %s -> %s (ID %d)", ipAddrs[i], ipAddrs[nextIdx], i)
-        return nil 
-      }
-    }
+			err := client.send()
+			if err <= 0 {
+				log.Printf("Failed to prepare boot package for %s -> %s (ID %d)", ipAddrs[i], ipAddrs[nextIdx], i)
+				return nil
+			}
+		}
 
-    // Verify the ring is complete via a FORWARD token loop
-    // Send FORWARD token into the ring
-    client.sendPkg.PkgType = FORWARD
-    client.send()
+		// Verify the ring is complete via a FORWARD token loop
+		// Send FORWARD token into the ring
+		client.sendPkg.PkgType = FORWARD
+		client.send()
 
-    // Wait to receive it back
-    client.recv()
-    if client.recvPkg.PkgType == FORWARD {
-      log.Println("Ring verified successfully.")
-      break
-    }
-  }
+		// Wait to receive it back
+		client.recv()
+		if client.recvPkg.PkgType == FORWARD {
+			log.Println("Ring verified successfully.")
+			break
+		}
+	}
 
-  // Signal that the ring is now complete
-  client.sendPkg.PkgType = RING_COMPLETE
-  client.send()
+	// Signal that the ring is now complete
+	client.sendPkg.PkgType = RING_COMPLETE
+	client.send()
 
-  return ids 
+	return ids
 }
 
 // EnterRing allows a node to join an existing token ring.

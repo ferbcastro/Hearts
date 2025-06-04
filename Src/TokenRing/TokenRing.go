@@ -31,7 +31,7 @@ type TokenRingClient struct {
 
 	ipAddrs []string
 
-	hasToForward               bool
+	hasToForward bool
 	waitForToken bool
 
 	sendPkg TokenRingPackage
@@ -92,7 +92,7 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 	}
 
 	client.prepareSendPkg(dest, DATA, data)
-	
+
 	var err int
 	for {
 		err = client.send()

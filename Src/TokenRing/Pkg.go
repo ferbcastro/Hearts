@@ -48,7 +48,7 @@ func (pkg *TokenRingPackage) decodeFromDataField(s any) int {
 	return 0
 }
 
-func (client *TokenRingClient) prepareSendPkg(dest byte, msgType int, data any) int{
+func (client *TokenRingClient) prepareSendPkg(dest byte, msgType int, data any) int {
 	client.sendPkg.Src = client.id
 	client.sendPkg.Dest = dest
 	client.sendPkg.PkgType = byte(msgType)
@@ -57,7 +57,7 @@ func (client *TokenRingClient) prepareSendPkg(dest byte, msgType int, data any) 
 	err := client.sendPkg.encodeIntoDataField(data)
 	if err != 0 {
 		log.Printf("Failed to encode data into dataField")
-		return -1 
+		return -1
 	}
-	return 0 
+	return 0
 }
