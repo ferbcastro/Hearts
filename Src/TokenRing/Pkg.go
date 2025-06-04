@@ -50,6 +50,7 @@ func (pkg *TokenRingPackage) decodeFromDataField(s any) int {
 
 func (client *TokenRingClient) prepareSendPkg(dest byte, msgType int, data any) int {
 	client.sendPkg.Src = client.id
+	client.sendPkg.TokenBusy = 1 
 	client.sendPkg.Dest = dest
 	client.sendPkg.PkgType = byte(msgType)
 	client.serial++
