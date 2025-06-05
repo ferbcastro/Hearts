@@ -9,6 +9,7 @@ import (
 const MAX_CARDS_PER_ROUND = 13
 const TOTAL_CARDS = 52
 const NUM_PLAYERS = 4
+const MAX_POINTS = 50
 
 const (
 	DIAMONDS = iota
@@ -94,6 +95,17 @@ type Player struct {
 	isHeartsBroken bool
 }
 
+func (p *Player) sendForAll(posInIds byte, something any) {
+	pos := (posInIds + 1) % NUM_PLAYERS
+	for {
+		if pos == posInIds {
+			return
+		}
+		p.ringClient.Send(p.clockWiseIds[pos], something)
+		pos = (pos + 1) % NUM_PLAYERS
+	}
+}
+
 func (d *deck) initDeck(myCards [MAX_CARDS_PER_ROUND]card) {
 	d.cards = myCards
 	d.cardsLeft = MAX_CARDS_PER_ROUND
@@ -140,7 +152,7 @@ func printDeck(d *deck) {
 }
 
 func (m *message) printUnexpectedType() {
-	println("Message type not expected [%v] in [Play]\n", m.msgType)
+	println("Message type not expected [%v]", m.msgType)
 }
 
 func (player *Player) InitPlayer(isRingCreator bool) {
@@ -149,7 +161,6 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 	var ip string
 
 	if isRingCreator {
-		player.positionInIds = 0
 		/* read ips */
 		ips := make([]string, NUM_PLAYERS)
 		fmt.Print("Enter your ip: ")
@@ -162,10 +173,9 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 		/* creat ring */
 		ids = player.ringClient.CreateRing(ips)
 		player.clockWiseIds = ids
+		player.positionInIds = 0
 		/* broadcast ids */
-		for i := 1; i < NUM_PLAYERS; i++ {
-			player.ringClient.Send(ids[i], ids)
-		}
+		player.sendForAll(0, ids)
 		/* should call DealerCard() */
 		player.isCardDealer = true
 	} else {
@@ -190,10 +200,10 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 	player.isHeartsBroken = false
 }
 
-/* Should be called once by card Dealer */
+/* Should be called by card Dealer */
 func (player *Player) DealCards() {
 	var numbers []int
-	for i := 0; i < TOTAL_CARDS; i++ {
+	for i := range TOTAL_CARDS {
 		numbers = append(numbers, i)
 	}
 	rand.Shuffle(len(numbers), func(i, j int) {
@@ -205,7 +215,7 @@ func (player *Player) DealCards() {
 	var j int
 	var idNextRoundHead uint8
 	pos := player.positionInIds
-	for i := 0; i < TOTAL_CARDS; i++ {
+	for i := range TOTAL_CARDS {
 		if (i%MAX_CARDS_PER_ROUND == 0) && (i != 0) {
 			if i == MAX_CARDS_PER_ROUND { /* dealer cards */
 				player.deck.initDeck(player.msg.cards)
@@ -234,14 +244,14 @@ func (player *Player) DealCards() {
 	fmt.Println("Players all set!")
 }
 
-/* Should be called once by players (except Dealer) */
+/* Should be called by players (except Dealer) */
 func (player *Player) GetCards() {
 	player.ringClient.Recv(&player.msg)
 	if player.msg.msgType != CARDS {
 		player.msg.printUnexpectedType()
 	}
 	player.deck.initDeck(player.msg.cards)
-	for i := 0; i < MAX_CARDS_PER_ROUND; i++ {
+	for i := range player.deck.cards {
 		if player.deck.cards[i].isCardEqual(TWO, CLUBS) {
 			player.isRoundMaster = true
 			player.ringClient.Recv(&player.msg)
@@ -259,6 +269,10 @@ func (player *Player) Play() {
 		fmt.Println("You begin round!")
 	} else {
 		player.ringClient.Recv(&player.msg)
+		if player.msg.msgType == HEARTS_BROKEN {
+			player.isHeartsBroken = true
+			player.ringClient.Recv(&player.msg)
+		}
 		if player.msg.msgType != NEXT {
 			player.msg.printUnexpectedType()
 		}
@@ -277,10 +291,21 @@ func (player *Player) Play() {
 			fmt.Println("Invalid card!")
 			continue
 		} else {
-			if player.isRoundMaster && !player.isHeartsBroken &&
-				player.deck.cards[cardIt].isSuitEqual(HEARTS) {
-				fmt.Println("Invalid card!")
-				continue
+			if player.isRoundMaster {
+				if !player.isHeartsBroken && player.deck.cards[cardIt].isSuitEqual(HEARTS) {
+					fmt.Println("Invalid card!")
+					continue
+				}
+			} else {
+				/* check for card of same suit played by round master */
+
+				/* broadcast HEARTS_BROKEN */
+				if player.deck.cards[cardIt].isSuitEqual(HEARTS) {
+					player.isHeartsBroken = true
+					player.msg.msgType = HEARTS_BROKEN
+					player.sendForAll(player.positionInIds, player.msg)
+					fmt.Println("Hearts broken!")
+				}
 			}
 		}
 		fmt.Println("Ok!")
@@ -296,6 +321,10 @@ func (player *Player) Play() {
 /* Should be called by round master */
 func (player *Player) WaitForAllCards() {
 	player.ringClient.Recv(&player.msg)
+	if player.msg.msgType == HEARTS_BROKEN {
+		player.isHeartsBroken = true
+		player.ringClient.Recv(&player.msg)
+	}
 	if player.msg.msgType != NEXT {
 		player.msg.printUnexpectedType()
 	}
