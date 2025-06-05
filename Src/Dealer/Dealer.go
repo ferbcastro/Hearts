@@ -26,4 +26,6 @@ func main() {
   }
 
   client.CreateRing(ips)
+
+	client.Send(2, struct {nome string }{"paulo"})
 }

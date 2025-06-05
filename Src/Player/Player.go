@@ -21,4 +21,13 @@ func main() {
 
 
   client.EnterRing(ip)
+
+	type a struct {
+		nome string
+	}
+
+	var b a
+	client.Recv(&b)
+
+	fmt.Printf("%+v\n", b)
 }
