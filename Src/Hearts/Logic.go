@@ -3,6 +3,7 @@ package Hearts
 import (
 	"Src/TokenRing"
 	"fmt"
+	"log"
 	"math/rand"
 )
 
@@ -10,6 +11,8 @@ const MAX_CARDS_PER_ROUND = 13
 const TOTAL_CARDS = 52
 const NUM_PLAYERS = 4
 const MAX_POINTS = 50
+const HEARTS_VAL = 1
+const QUEEN_SPADES_VAL = 13
 
 const (
 	DIAMONDS = iota
@@ -61,8 +64,10 @@ type card struct {
 const (
 	CARDS = iota
 	NEXT
+	PTS_QUERY
 	GAME_WINNER
-	POINTS_QUERY
+	END_GAME
+	MAX_PTS_REACHED
 	ROUND_LOSER
 	CONTINUE_GAME
 	HEARTS_BROKEN
@@ -88,7 +93,7 @@ type Player struct {
 	positionInIds  uint8
 	deck           deck
 	msg            message
-	points         int
+	points         uint8
 	isRoundMaster  bool
 	isCardDealer   bool
 	isGameActive   bool
@@ -152,12 +157,11 @@ func (player *Player) DealCards() {
 
 	fmt.Println("Cards shuffled! Distributing...")
 
-	var j int
 	var idNextRoundHead uint8
 	pos := player.positionInIds
 	for i := range TOTAL_CARDS {
 		if (i%MAX_CARDS_PER_ROUND == 0) && (i != 0) {
-			if i == MAX_CARDS_PER_ROUND { /* dealer cards */
+			if pos == player.positionInIds { /* dealer cards */
 				player.deck.initDeck(player.msg.cards)
 			} else { /* other players' cards */
 				player.msg.msgType = CARDS
@@ -166,7 +170,7 @@ func (player *Player) DealCards() {
 			pos = (pos + 1) % NUM_PLAYERS
 		}
 
-		j = i % MAX_CARDS_PER_ROUND
+		j := i % MAX_CARDS_PER_ROUND
 		player.msg.cards[j].suit = uint8(numbers[i] / len(ranks))
 		player.msg.cards[j].rank = uint8(numbers[i] % len(ranks))
 		if player.msg.cards[j].isCardEqual(TWO, CLUBS) {
@@ -211,6 +215,8 @@ func (player *Player) Play() {
 	var cardIt int
 	switch player.isRoundMaster {
 	case true:
+		/* reset number of played cards */
+		player.msg.numPlayedCards = 0
 		fmt.Println("You begin round!")
 		player.deck.printDeck()
 		for {
@@ -236,14 +242,8 @@ func (player *Player) Play() {
 		if player.msg.msgType != NEXT {
 			player.msg.printUnexpectedType()
 		}
-		masterPos := (player.positionInIds + (NUM_PLAYERS - player.msg.numPlayedCards)) % NUM_PLAYERS
-		masterSuit := player.msg.cards[masterPos].suit
-		hasMasterSuit := false
-		for i := range player.deck.cards {
-			if !player.deck.wasUsed[i] && player.deck.cards[i].isSuitEqual(masterSuit) {
-				hasMasterSuit = true
-			}
-		}
+		masterSuit := player.getMasterSuit()
+		hasMasterSuit := player.deckHasMasterSuit(masterSuit)
 		fmt.Println("Your turn!")
 		player.deck.printDeck()
 		for {
@@ -268,11 +268,7 @@ func (player *Player) Play() {
 
 	fmt.Printf("Ok!\n\n")
 	player.deck.setCardUsed(cardIt)
-
-	player.msg.msgType = NEXT
-	player.msg.cards[player.positionInIds] = player.deck.cards[cardIt]
-	next := (player.positionInIds + 1) % NUM_PLAYERS
-	player.ringClient.Send(player.clockWiseIds[next], player.msg)
+	player.sendCardsToNextPlayer(cardIt)
 }
 
 /* Should be called by round master */
@@ -289,7 +285,47 @@ func (player *Player) WaitForAllCards() {
 
 /* Should be called by round master */
 func (player *Player) InformRoundLoser() {
+	/* reset isRoundMaster */
+	player.isRoundMaster = false
 
+	masterSuit := player.getMasterSuit()
+	loserPosInIds := player.getMasterPosInIds()
+	/* obtain loser id */
+	for i := range NUM_PLAYERS {
+		if player.msg.cards[i].isSuitEqual(masterSuit) {
+			if player.msg.cards[i].rank > player.msg.cards[loserPosInIds].rank {
+				loserPosInIds = uint8(i)
+			}
+		}
+	}
+	log.Println("DEBUG: loser id =", player.clockWiseIds[loserPosInIds])
+
+	sum := uint8(0)
+	/* obtain sum of points */
+	for i := range NUM_PLAYERS {
+		if player.msg.cards[i].isSuitEqual(HEARTS) {
+			sum += HEARTS_VAL
+		} else {
+			if player.msg.cards[i].isCardEqual(QUEEN, SPADES) {
+				sum += QUEEN_SPADES_VAL
+			}
+		}
+	}
+
+	/* send points to loser */
+	if loserPosInIds == player.positionInIds {
+		player.msg.msgType = ROUND_LOSER
+		player.msg.earnedPoints = sum
+		player.ringClient.Send(player.clockWiseIds[loserPosInIds], player.msg)
+	} else {
+		player.points += sum
+	}
+	/* wait for CONTINUE_GAME or MAX_PTS_REACHED */
+	player.ringClient.Recv()
+	/* if MAX_PTS_REACHED,  */
+
+	/* if CONTINUE_GAME, send continue signal to others */
+	player.ringClient.Send()
 }
 
 /* Dealer sends a message to the round winner */
@@ -321,6 +357,35 @@ func (player *Player) NoCardsLeft() bool {
 //===================================================================
 // Local functions
 //===================================================================
+
+func (p *Player) sendCardsToNextPlayer(cardIt int) {
+	p.msg.msgType = NEXT
+	p.msg.numPlayedCards++
+	p.msg.cards[p.positionInIds] = p.deck.cards[cardIt]
+	next := (p.positionInIds + 1) % NUM_PLAYERS
+	p.ringClient.Send(p.clockWiseIds[next], p.msg)
+}
+
+func (p *Player) deckHasMasterSuit(masterSuit uint8) bool {
+	for i := range p.deck.cards {
+		if !p.deck.wasUsed[i] && p.deck.cards[i].isSuitEqual(masterSuit) {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Player) getMasterPosInIds() uint8 {
+	return (p.positionInIds + (NUM_PLAYERS - p.msg.numPlayedCards)) % NUM_PLAYERS
+}
+
+func (p *Player) getMasterSuit() uint8 {
+	masterPos := p.getMasterPosInIds()
+	log.Println("DEBUG: masterPos =", masterPos)
+	masterSuit := p.msg.cards[masterPos].suit
+	log.Println("DEBUG: masterSuit =", masterSuit)
+	return masterSuit
+}
 
 func (p *Player) sendForAll(something any) {
 	for it := range p.clockWiseIds {
