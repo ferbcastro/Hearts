@@ -77,7 +77,7 @@ type message struct {
 
 type deck struct {
 	cards     [MAX_CARDS_PER_ROUND]card
-	used      [MAX_CARDS_PER_ROUND]bool
+	wasUsed   [MAX_CARDS_PER_ROUND]bool
 	cardsLeft uint8
 }
 
@@ -97,26 +97,26 @@ type Player struct {
 func (d *deck) initDeck(myCards [MAX_CARDS_PER_ROUND]card) {
 	d.cards = myCards
 	d.cardsLeft = MAX_CARDS_PER_ROUND
-	for i := range d.used {
-		d.used[i] = false
+	for i := range d.wasUsed {
+		d.wasUsed[i] = false
 	}
 }
 
 func (d *deck) getCardFromDeck(idx int) int {
-	j := 0 /* first index is 1 */
-	for i := range d.used {
-		if d.used[i] == false {
+	j := 1 /* first index is 1 */
+	for i := range d.wasUsed {
+		if !d.wasUsed[i] {
+			if j == idx {
+				return i
+			}
 			j++
-		}
-		if j == idx {
-			return i
 		}
 	}
 	return -1
 }
 
 func (d *deck) setCardUsed(idx int) {
-	d.used[idx] = true
+	d.wasUsed[idx] = true
 }
 
 func (c *card) isSuitEqual(suit byte) bool {
@@ -128,10 +128,12 @@ func (c *card) isCardEqual(rank, suit byte) bool {
 }
 
 func printDeck(d *deck) {
+	j := 1 /* first index is 1 */
 	fmt.Print("Your cards: ")
-	for i := 0; i < MAX_CARDS_PER_ROUND; i++ {
-		if d.used[i] == false {
-			fmt.Printf("%v: %v%v ", i, ranks[d.cards[i].rank], suits[d.cards[i].suit])
+	for i := range d.wasUsed {
+		if !d.wasUsed[i] {
+			fmt.Printf("%v: %v%v ", j, ranks[d.cards[i].rank], suits[d.cards[i].suit])
+			j++
 		}
 	}
 	fmt.Printf("\n")
@@ -146,7 +148,7 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 	var ids []byte
 	var ip string
 
-	if isRingCreator == true {
+	if isRingCreator {
 		player.positionInIds = 0
 		/* read ips */
 		ips := make([]string, NUM_PLAYERS)
@@ -170,7 +172,7 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 		/* enter ring */
 		fmt.Print("Enter your ip: ")
 		fmt.Scanln(&ip)
-		myId = player.ringClient.EnterRing(ip)
+		myId = byte(player.ringClient.EnterRing(ip))
 		/* read ids */
 		player.ringClient.Recv(&player.clockWiseIds)
 		/* discover position */
@@ -253,7 +255,7 @@ func (player *Player) GetCards() {
 
 /* Show cards to player and let they choose */
 func (player *Player) Play() {
-	if player.isRoundMaster == true {
+	if player.isRoundMaster {
 		fmt.Println("You begin round!")
 	} else {
 		player.ringClient.Recv(&player.msg)

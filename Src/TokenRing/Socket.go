@@ -3,6 +3,7 @@ package TokenRing
 import (
 	"log"
 	"net"
+	"time"
 )
 
 const (
@@ -48,6 +49,8 @@ func (sock *SockDgram) CloseSocket() int {
 }
 
 func (sock *SockDgram) Recv(arr []byte) int {
+    timeout := 100 * time.Millisecond
+    sock.conn.SetReadDeadline(time.Now().Add(timeout))
 	numBytes, _, err := sock.conn.ReadFromUDP(arr)
 	if err != nil {
 		log.Printf("ReadFromUDP failed [%v] read [%v] bytes\n", err, numBytes)

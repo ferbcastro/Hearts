@@ -22,6 +22,8 @@ func (client *TokenRingClient) init(ipaddr string) int {
 		return -1
 	}
 
+	client.waitForToken = true
+
 	// Register all types that may be transmitted
 	gob.Register(TokenRingPackage{})
 	gob.Register(bootData{})
@@ -53,34 +55,40 @@ func (client *TokenRingClient) initAsStarter(ipaddr string) int {
 		return -1
 	}
 
-	client.id = 0 // Starter node always gets ID 0
+	client.id = 0
+	client.waitForToken = false
 
 	return 0
 }
 
 // CreateRing initializes the Token Ring network by connecting all clients in a circular list.
 // The caller is assumed to be the starter and assigned ID 0.
-func (client *TokenRingClient) CreateRing(ipAddrs []string) byte, []byte {
+func (client *TokenRingClient) CreateRing(ipAddrs []string) []byte {
 	client.ipAddrs = ipAddrs
 
+	ids := make([]byte, len(ipAddrs))
+	ids[0] = 0
 	// Initialize the starter (caller) with ID 0 and bind to ipAddrs[0]
 	err := client.initAsStarter(ipAddrs[0])
 	if err != 0 {
 		log.Printf("Failed to init Token Ring starter: %v\n", err)
-		return -1
+		return nil
 	}
 
 	for {
 		// Setup the ring by bootstrapping each client with its ID and next IP
 		for i := 1; i < len(ipAddrs); i++ {
+			ids[i] = byte(i)
+
 			nextIdx := (i + 1) % len(ipAddrs)
 			log.Printf("Setting up link: %s (ID %d) -> %s\n", ipAddrs[i], i, ipAddrs[nextIdx])
 
 			data := bootData{byte(i), ipAddrs[i], ipAddrs[nextIdx]}
-			err := client.Send(0, BOOT, data)
+			client.prepareSendPkg(0, BOOT, data)
+			err := client.send()
 			if err <= 0 {
 				log.Printf("Failed to prepare boot package for %s -> %s (ID %d)", ipAddrs[i], ipAddrs[nextIdx], i)
-				return -1
+				return nil
 			}
 		}
 
@@ -100,8 +108,9 @@ func (client *TokenRingClient) CreateRing(ipAddrs []string) byte, []byte {
 	// Signal that the ring is now complete
 	client.sendPkg.PkgType = RING_COMPLETE
 	client.send()
+	client.recv()
 
-	return 0
+	return ids
 }
 
 // EnterRing allows a node to join an existing token ring.
