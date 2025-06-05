@@ -312,27 +312,29 @@ func (player *Player) InformRoundLoser() {
 		}
 	}
 
-	/* send points to loser */
-	if loserPosInIds == player.positionInIds {
+	if loserPosInIds != player.positionInIds { /* loser is not round master */
 		player.msg.msgType = ROUND_LOSER
 		player.msg.earnedPoints = sum
 		player.ringClient.Send(player.clockWiseIds[loserPosInIds], player.msg)
-	} else {
+		/* wait for CONTINUE_GAME or MAX_PTS_REACHED */
+		player.ringClient.Recv(&player.msg)
+		if player.msg.msgType == CONTINUE_GAME {
+			player.msg.msgType = CONTINUE_GAME
+			player.sendForAll(player.msg)
+		} else if player.msg.msgType == MAX_PTS_REACHED {
+
+		} else {
+			player.msg.printUnexpectedType()
+		}
+	} else { /* loser is round master */
 		player.points += sum
 		if player.points >= MAX_POINTS {
 			player.isGameActive = false
-			return
 		} else {
 			player.msg.msgType = CONTINUE_GAME
 			player.sendForAll(player.msg)
 		}
 	}
-	/* wait for CONTINUE_GAME or MAX_PTS_REACHED */
-	player.ringClient.Recv()
-	/* if MAX_PTS_REACHED,  */
-
-	/* if CONTINUE_GAME, send continue signal to others */
-	player.ringClient.Send()
 }
 
 func (player *Player) IsThereAWinner() bool {
