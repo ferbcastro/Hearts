@@ -95,66 +95,6 @@ type Player struct {
 	isHeartsBroken bool
 }
 
-func (p *Player) sendForAll(posInIds byte, something any) {
-	pos := (posInIds + 1) % NUM_PLAYERS
-	for {
-		if pos == posInIds {
-			return
-		}
-		p.ringClient.Send(p.clockWiseIds[pos], something)
-		pos = (pos + 1) % NUM_PLAYERS
-	}
-}
-
-func (d *deck) initDeck(myCards [MAX_CARDS_PER_ROUND]card) {
-	d.cards = myCards
-	d.cardsLeft = MAX_CARDS_PER_ROUND
-	for i := range d.wasUsed {
-		d.wasUsed[i] = false
-	}
-}
-
-func (d *deck) getCardFromDeck(idx int) int {
-	j := 1 /* first index is 1 */
-	for i := range d.wasUsed {
-		if !d.wasUsed[i] {
-			if j == idx {
-				return i
-			}
-			j++
-		}
-	}
-	return -1
-}
-
-func (d *deck) setCardUsed(idx int) {
-	d.wasUsed[idx] = true
-}
-
-func (c *card) isSuitEqual(suit byte) bool {
-	return (c.suit == suit)
-}
-
-func (c *card) isCardEqual(rank, suit byte) bool {
-	return (c.rank == rank && c.suit == suit)
-}
-
-func printDeck(d *deck) {
-	j := 1 /* first index is 1 */
-	fmt.Print("Your cards: ")
-	for i := range d.wasUsed {
-		if !d.wasUsed[i] {
-			fmt.Printf("%v: %v%v ", j, ranks[d.cards[i].rank], suits[d.cards[i].suit])
-			j++
-		}
-	}
-	fmt.Printf("\n")
-}
-
-func (m *message) printUnexpectedType() {
-	println("Message type not expected [%v]", m.msgType)
-}
-
 func (player *Player) InitPlayer(isRingCreator bool) {
 	var myId byte
 	var ids []byte
@@ -175,7 +115,7 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 		player.clockWiseIds = ids
 		player.positionInIds = 0
 		/* broadcast ids */
-		player.sendForAll(0, ids)
+		player.sendForAll(ids)
 		/* should call DealerCard() */
 		player.isCardDealer = true
 	} else {
@@ -246,10 +186,12 @@ func (player *Player) DealCards() {
 
 /* Should be called by players (except Dealer) */
 func (player *Player) GetCards() {
+	fmt.Println("Getting cards...")
 	player.ringClient.Recv(&player.msg)
 	if player.msg.msgType != CARDS {
 		player.msg.printUnexpectedType()
 	}
+	fmt.Println("Got cards!")
 	player.deck.initDeck(player.msg.cards)
 	for i := range player.deck.cards {
 		if player.deck.cards[i].isCardEqual(TWO, CLUBS) {
@@ -265,9 +207,27 @@ func (player *Player) GetCards() {
 
 /* Show cards to player and let they choose */
 func (player *Player) Play() {
-	if player.isRoundMaster {
+	var selected int
+	var cardIt int
+	switch player.isRoundMaster {
+	case true:
 		fmt.Println("You begin round!")
-	} else {
+		player.deck.printDeck()
+		for {
+			fmt.Print("Choose a card from your deck: ")
+			fmt.Scanln(&selected)
+			cardIt = player.deck.getCardFromDeck(selected)
+			if cardIt == -1 {
+				fmt.Println("Invalid card!")
+				continue
+			}
+			if player.deck.cards[cardIt].isSuitEqual(HEARTS) && !player.isHeartsBroken {
+				fmt.Println("Invalid card!")
+				continue
+			}
+			break
+		}
+	case false:
 		player.ringClient.Recv(&player.msg)
 		if player.msg.msgType == HEARTS_BROKEN {
 			player.isHeartsBroken = true
@@ -276,46 +236,43 @@ func (player *Player) Play() {
 		if player.msg.msgType != NEXT {
 			player.msg.printUnexpectedType()
 		}
-		fmt.Println("Your turn!")
-	}
-
-	/* select valid card */
-	printDeck(&player.deck)
-	cardIdx := 0
-	var cardIt int
-	for {
-		fmt.Print("Choose a card from your deck: ")
-		fmt.Scanln(&cardIdx)
-		cardIt = player.deck.getCardFromDeck(cardIdx)
-		if cardIt == -1 {
-			fmt.Println("Invalid card!")
-			continue
-		} else {
-			if player.isRoundMaster {
-				if !player.isHeartsBroken && player.deck.cards[cardIt].isSuitEqual(HEARTS) {
-					fmt.Println("Invalid card!")
-					continue
-				}
-			} else {
-				/* check for card of same suit played by round master */
-
-				/* broadcast HEARTS_BROKEN */
-				if player.deck.cards[cardIt].isSuitEqual(HEARTS) {
-					player.isHeartsBroken = true
-					player.msg.msgType = HEARTS_BROKEN
-					player.sendForAll(player.positionInIds, player.msg)
-					fmt.Println("Hearts broken!")
-				}
+		masterPos := (player.positionInIds + (NUM_PLAYERS - player.msg.numPlayedCards)) % NUM_PLAYERS
+		masterSuit := player.msg.cards[masterPos].suit
+		hasMasterSuit := false
+		for i := range player.deck.cards {
+			if !player.deck.wasUsed[i] && player.deck.cards[i].isSuitEqual(masterSuit) {
+				hasMasterSuit = true
 			}
 		}
-		fmt.Println("Ok!")
-		player.deck.setCardUsed(cardIt)
-		break
+		fmt.Println("Your turn!")
+		player.deck.printDeck()
+		for {
+			fmt.Print("Choose a card from your deck: ")
+			fmt.Scanln(&selected)
+			cardIt = player.deck.getCardFromDeck(selected)
+			if cardIt == -1 {
+				fmt.Println("Invalid card!")
+				continue
+			}
+			if hasMasterSuit && !player.deck.cards[cardIt].isSuitEqual(masterSuit) {
+				fmt.Println("Invalid card!")
+				continue
+			}
+			if !player.isHeartsBroken && player.deck.cards[cardIt].isSuitEqual(HEARTS) {
+				player.msg.msgType = HEARTS_BROKEN
+				player.sendForAll(player.msg)
+			}
+			break
+		}
 	}
-	fmt.Printf("\n\n")
 
-	/* send valid card to next */
+	fmt.Printf("Ok!\n\n")
+	player.deck.setCardUsed(cardIt)
 
+	player.msg.msgType = NEXT
+	player.msg.cards[player.positionInIds] = player.deck.cards[cardIt]
+	next := (player.positionInIds + 1) % NUM_PLAYERS
+	player.ringClient.Send(player.clockWiseIds[next], player.msg)
 }
 
 /* Should be called by round master */
@@ -359,4 +316,67 @@ func (player *Player) IsCardDealer() bool {
 
 func (player *Player) NoCardsLeft() bool {
 	return player.deck.cardsLeft == 0
+}
+
+//===================================================================
+// Local functions
+//===================================================================
+
+func (p *Player) sendForAll(something any) {
+	for it := range p.clockWiseIds {
+		if it == int(p.positionInIds) {
+			continue
+		}
+		p.ringClient.Send(p.clockWiseIds[it], something)
+	}
+}
+
+func (d *deck) initDeck(myCards [MAX_CARDS_PER_ROUND]card) {
+	d.cards = myCards
+	d.cardsLeft = MAX_CARDS_PER_ROUND
+	for i := range d.wasUsed {
+		d.wasUsed[i] = false
+	}
+}
+
+func (d *deck) getCardFromDeck(idx int) int {
+	j := 1 /* first index is 1 */
+	for i := range d.wasUsed {
+		if !d.wasUsed[i] {
+			if j == idx {
+				return i
+			}
+			j++
+		}
+	}
+	return -1
+}
+
+func (d *deck) setCardUsed(idx int) {
+	d.wasUsed[idx] = true
+	d.cardsLeft--
+}
+
+func (c *card) isSuitEqual(suit byte) bool {
+	return (c.suit == suit)
+}
+
+func (c *card) isCardEqual(rank, suit byte) bool {
+	return (c.rank == rank && c.suit == suit)
+}
+
+func (d *deck) printDeck() {
+	j := 1 /* first index is 1 */
+	fmt.Print("Your cards: ")
+	for i := range d.wasUsed {
+		if !d.wasUsed[i] {
+			fmt.Printf("%v: %v%v ", j, ranks[d.cards[i].rank], suits[d.cards[i].suit])
+			j++
+		}
+	}
+	fmt.Printf("\n")
+}
+
+func (m *message) printUnexpectedType() {
+	println("Message type not expected [%v]", m.msgType)
 }
