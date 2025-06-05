@@ -319,6 +319,13 @@ func (player *Player) InformRoundLoser() {
 		player.ringClient.Send(player.clockWiseIds[loserPosInIds], player.msg)
 	} else {
 		player.points += sum
+		if player.points >= MAX_POINTS {
+			player.isGameActive = false
+			return
+		} else {
+			player.msg.msgType = CONTINUE_GAME
+			player.sendForAll(player.msg)
+		}
 	}
 	/* wait for CONTINUE_GAME or MAX_PTS_REACHED */
 	player.ringClient.Recv()
@@ -326,6 +333,10 @@ func (player *Player) InformRoundLoser() {
 
 	/* if CONTINUE_GAME, send continue signal to others */
 	player.ringClient.Send()
+}
+
+func (player *Player) IsThereAWinner() bool {
+	return !player.isGameActive
 }
 
 /* Dealer sends a message to the round winner */

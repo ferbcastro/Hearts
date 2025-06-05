@@ -46,6 +46,9 @@ func main() {
 		if player.IsRoundMaster() {
 			player.WaitForAllCards()
 			player.InformRoundLoser()
+			if player.IsThereAWinner() {
+				player.AnounceWinner()
+			}
 		} else {
 			player.WaitForResult()
 		}
