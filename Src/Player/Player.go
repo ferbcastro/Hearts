@@ -52,5 +52,7 @@ func main() {
 		} else {
 			player.WaitForResult()
 		}
+
+		player.PrintPoints()
 	}
 }

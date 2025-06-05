@@ -300,7 +300,6 @@ func (player *Player) InformRoundLoser() {
 			}
 		}
 	}
-	log.Println("DEBUG: loser id =", player.clockWiseIds[loserPosInIds])
 
 	sum := uint8(0)
 	/* obtain sum of points */
@@ -315,6 +314,7 @@ func (player *Player) InformRoundLoser() {
 	if loserPosInIds != player.positionInIds { /* loser is not round master */
 		player.msg.msgType = ROUND_LOSER
 		player.msg.earnedPoints = sum
+		player.msg.sourceId = player.clockWiseIds[player.positionInIds]
 		player.ringClient.Send(player.clockWiseIds[loserPosInIds], &player.msg)
 		/* wait for CONTINUE_GAME or MAX_PTS_REACHED */
 		player.ringClient.Recv(&player.msg)
@@ -329,8 +329,11 @@ func (player *Player) InformRoundLoser() {
 	} else { /* loser is round master */
 		player.points += sum
 		player.isRoundMaster = true
+		fmt.Println("You lost round!")
 		if player.points >= MAX_POINTS {
 			player.isGameActive = false
+			player.msg.msgType = END_GAME
+			player.sendForAll(&player.msg)
 		} else {
 			player.msg.msgType = CONTINUE_GAME
 			player.sendForAll(&player.msg)
@@ -352,6 +355,7 @@ func (player *Player) AnounceWinner() {
 			continue
 		}
 		player.msg.msgType = PTS_QUERY
+		player.msg.sourceId = player.clockWiseIds[player.positionInIds]
 		player.ringClient.Send(player.clockWiseIds[i], &player.msg)
 		player.ringClient.Recv(&player.msg)
 		if player.msg.msgType != PTS_REPLY {
@@ -375,20 +379,33 @@ func (player *Player) WaitForResult() {
 		fmt.Println("New round!")
 	case ROUND_LOSER:
 		fmt.Println("You lost round!")
+		player.isRoundMaster = true
 		player.points += player.msg.earnedPoints
 		if player.points >= MAX_POINTS {
 			player.msg.msgType = MAX_PTS_REACHED
 			player.ringClient.Send(player.msg.sourceId, &player.msg)
+			player.WaitForResult() /* recursive call */
 		} else {
-			player.isRoundMaster = true
+			player.msg.msgType = CONTINUE_GAME
+			player.ringClient.Send(player.msg.sourceId, &player.msg)
+			player.WaitForResult() /* recursive call */
 		}
 	case PTS_QUERY:
-
+		fmt.Println("Round master sent points query!")
+		player.msg.msgType = PTS_REPLY
+		player.msg.earnedPoints = player.points
+		player.ringClient.Send(player.msg.sourceId, &player.msg)
+		player.WaitForResult() /* recursive call */
 	case GAME_WINNER:
-
+		fmt.Println("You won!")
+		player.WaitForResult() /* recursive call */
 	case END_GAME:
 		player.isGameActive = false
 	}
+}
+
+func (player *Player) PrintPoints() {
+	fmt.Println("Your points:", player.points)
 }
 
 func (player *Player) IsRoundMaster() bool {
