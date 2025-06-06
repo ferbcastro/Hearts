@@ -36,6 +36,7 @@ func main() {
 		}
 
 		if player.NoCardsLeft() {
+			player.ResetHeartsBroken()
 			if player.IsCardDealer() {
 				player.DealCards()
 			} else {
