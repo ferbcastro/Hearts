@@ -1,7 +1,6 @@
-package Hearts
+package TokenRing
 
 import (
-	"Src/TokenRing"
 	"fmt"
 	"log"
 	"math/rand"
@@ -92,7 +91,7 @@ type deck struct {
 }
 
 type Player struct {
-	ringClient     TokenRing.TokenRingClient
+	ringClient     TokenRingClient
 	clockWiseIds   []uint8
 	positionInIds  uint8
 	myId           uint8
