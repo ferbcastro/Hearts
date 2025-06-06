@@ -147,8 +147,8 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 	player.deck.cardsLeft = 0
 	player.isRoundMaster = false
 	player.isGameActive = true
-    fmt.Println("DEBUG: ids =", player.clockWiseIds)
-    fmt.Println("DEBUG: pos =", player.positionInIds)
+	fmt.Println("DEBUG: ids =", player.clockWiseIds)
+	fmt.Println("DEBUG: pos =", player.positionInIds)
 }
 
 /* Should be called by card Dealer */
@@ -172,7 +172,7 @@ func (player *Player) DealCards() {
 			} else { /* other players' cards */
 				player.msg.msgType = CARDS
 				player.ringClient.Send(player.clockWiseIds[pos], &player.msg)
-                fmt.Println("DEBUG: cards sent to", player.clockWiseIds[pos])
+				fmt.Println("DEBUG: cards sent to", player.clockWiseIds[pos])
 			}
 			pos = (pos + 1) % NUM_PLAYERS
 		}
