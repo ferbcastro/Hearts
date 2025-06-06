@@ -56,9 +56,9 @@ var ranks = []string{
 	"𝔞𝔠𝔢",
 }
 
-type card struct {
-	suit uint8
-	rank uint8
+type Card struct {
+	Suit uint8
+	Rank uint8
 }
 
 /* Message types */
@@ -77,7 +77,7 @@ const (
 )
 
 type message struct {
-	Cards          [MAX_CARDS_PER_ROUND]card
+	Cards          [MAX_CARDS_PER_ROUND]Card
 	MsgType        uint8
 	NumPlayedCards uint8
 	EarnedPoints   uint8
@@ -85,7 +85,7 @@ type message struct {
 }
 
 type deck struct {
-	cards     [MAX_CARDS_PER_ROUND]card
+	cards     [MAX_CARDS_PER_ROUND]Card
 	wasUsed   [MAX_CARDS_PER_ROUND]bool
 	cardsLeft uint8
 }
@@ -177,8 +177,8 @@ func (player *Player) DealCards() {
 		}
 
 		j := i % MAX_CARDS_PER_ROUND
-		player.msg.Cards[j].suit = uint8(numbers[i] / len(ranks))
-		player.msg.Cards[j].rank = uint8(numbers[i] % len(ranks))
+		player.msg.Cards[j].Suit = uint8(numbers[i] / len(ranks))
+		player.msg.Cards[j].Rank = uint8(numbers[i] % len(ranks))
 		if player.msg.Cards[j].isCardEqual(TWO, CLUBS) {
 			idNextRoundHead = player.clockWiseIds[pos]
 		}
@@ -309,7 +309,7 @@ func (player *Player) InformRoundLoser() {
 	/* obtain loser id */
 	for i := 0; i < NUM_PLAYERS; i++ {
 		if player.msg.Cards[i].isSuitEqual(masterSuit) {
-			if player.msg.Cards[i].rank > player.msg.Cards[loserPosInIds].rank {
+			if player.msg.Cards[i].Rank > player.msg.Cards[loserPosInIds].Rank {
 				loserPosInIds = i
 			}
 		}
@@ -455,7 +455,7 @@ func (p *Player) getMasterPosInIds() uint8 {
 func (p *Player) getMasterSuit() uint8 {
 	masterPos := p.getMasterPosInIds()
 	log.Println("DEBUG: masterPos =", masterPos)
-	masterSuit := p.msg.Cards[masterPos].suit
+	masterSuit := p.msg.Cards[masterPos].Suit
 	log.Println("DEBUG: masterSuit =", masterSuit)
 	return masterSuit
 }
@@ -469,7 +469,7 @@ func (p *Player) sendForAll(something any) {
 	}
 }
 
-func (d *deck) initDeck(myCards [MAX_CARDS_PER_ROUND]card) {
+func (d *deck) initDeck(myCards [MAX_CARDS_PER_ROUND]Card) {
 	d.cards = myCards
 	d.cardsLeft = MAX_CARDS_PER_ROUND
 	for i := range d.wasUsed {
@@ -495,12 +495,12 @@ func (d *deck) setCardUsed(idx int) {
 	d.cardsLeft--
 }
 
-func (c *card) isSuitEqual(suit byte) bool {
-	return (c.suit == suit)
+func (c *Card) isSuitEqual(suit byte) bool {
+	return (c.Suit == suit)
 }
 
-func (c *card) isCardEqual(rank, suit byte) bool {
-	return (c.rank == rank && c.suit == suit)
+func (c *Card) isCardEqual(rank, suit byte) bool {
+	return (c.Rank == rank && c.Suit == suit)
 }
 
 func (d *deck) printDeck() {
@@ -508,7 +508,7 @@ func (d *deck) printDeck() {
 	fmt.Print("Your cards: ")
 	for i := range d.wasUsed {
 		if !d.wasUsed[i] {
-			fmt.Printf("%v: %v%v ", j, ranks[d.cards[i].rank], suits[d.cards[i].suit])
+			fmt.Printf("%v: %v%v ", j, ranks[d.cards[i].Rank], suits[d.cards[i].Suit])
 			j++
 		}
 	}
