@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 )
 
 const MAX_CARDS_PER_ROUND = 13
@@ -13,6 +14,7 @@ const NUM_PLAYERS = 4
 const MAX_POINTS = 50
 const HEARTS_VAL = 1
 const QUEEN_SPADES_VAL = 13
+const CARD_INVALID = -1
 
 const (
 	DIAMONDS = iota
@@ -72,7 +74,7 @@ const (
 	ROUND_LOSER
 	CONTINUE_GAME
 	HEARTS_BROKEN
-	BEGIN_GAME
+	BEGIN_ROUND
 )
 
 type message struct {
@@ -93,6 +95,7 @@ type Player struct {
 	ringClient     TokenRing.TokenRingClient
 	clockWiseIds   []uint8
 	positionInIds  uint8
+	myId           uint8
 	deck           deck
 	msg            message
 	points         uint8
@@ -111,7 +114,7 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 		/* read ips */
 		ips := make([]string, NUM_PLAYERS)
 		fmt.Print("Enter your ip: ")
-		fmt.Scanln(&ips[player.positionInIds])
+		fmt.Scanln(&ips[0])
 		fmt.Println("Now enter other players' ip in clockwise order")
 		for i := 1; i < NUM_PLAYERS; i++ {
 			fmt.Print("Enter ip: ")
@@ -122,9 +125,7 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 		player.clockWiseIds = ids
 		player.positionInIds = 0
 		/* broadcast ids */
-		player.sendForAll(ids)
-		/* should call DealerCard() */
-		player.isCardDealer = true
+		player.sendForAll(&ids)
 	} else {
 		/* enter ring */
 		fmt.Print("Enter your ip: ")
@@ -139,12 +140,12 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 				break
 			}
 		}
-		/* should call GetCards() */
-		player.isCardDealer = false
 	}
+	player.myId = player.clockWiseIds[player.positionInIds]
+	player.isCardDealer = isRingCreator
 	player.points = 0
 	player.deck.cardsLeft = 0
-	player.isHeartsBroken = false
+	player.isRoundMaster = false
 }
 
 /* Should be called by card Dealer */
@@ -157,7 +158,7 @@ func (player *Player) DealCards() {
 		numbers[i], numbers[j] = numbers[j], numbers[i]
 	})
 
-	fmt.Println("Cards shuffled! Distributing...")
+	fmt.Println("Cards shuffled! Sending cards!")
 
 	var idNextRoundHead uint8
 	pos := player.positionInIds
@@ -180,34 +181,31 @@ func (player *Player) DealCards() {
 		}
 	}
 
-	if idNextRoundHead == player.clockWiseIds[player.positionInIds] {
-		player.isRoundMaster = true
-	} else {
-		player.msg.msgType = BEGIN_GAME
+	player.isHeartsBroken = false
+	player.isRoundMaster = (idNextRoundHead == player.myId)
+	if !player.isRoundMaster {
+		player.msg.msgType = BEGIN_ROUND
 		player.ringClient.Send(idNextRoundHead, player.msg)
 	}
-
-	fmt.Println("Players all set!")
 }
 
 /* Should be called by players (except Dealer) */
 func (player *Player) GetCards() {
+	player.isHeartsBroken = false
 	fmt.Println("Getting cards...")
 	player.ringClient.Recv(&player.msg)
-	if player.msg.msgType != CARDS {
-		player.msg.printUnexpectedType()
-	}
+	player.msg.inspectType(CARDS)
 	fmt.Println("Got cards!")
 	player.deck.initDeck(player.msg.cards)
-	for i := range player.deck.cards {
+	for i := range MAX_CARDS_PER_ROUND {
 		if player.deck.cards[i].isCardEqual(TWO, CLUBS) {
 			player.isRoundMaster = true
-			player.ringClient.Recv(&player.msg)
-			if player.msg.msgType != BEGIN_GAME {
-				player.msg.printUnexpectedType()
-			}
 			break
 		}
+	}
+	if player.isRoundMaster {
+		player.ringClient.Recv(&player.msg)
+		player.msg.inspectType(BEGIN_ROUND)
 	}
 }
 
@@ -225,7 +223,7 @@ func (player *Player) Play() {
 			fmt.Print("Choose a card from your deck: ")
 			fmt.Scanln(&selected)
 			cardIt = player.deck.getCardFromDeck(selected)
-			if cardIt == -1 {
+			if cardIt == CARD_INVALID {
 				fmt.Println("Invalid card!")
 				continue
 			}
@@ -241,9 +239,7 @@ func (player *Player) Play() {
 			player.isHeartsBroken = true
 			player.ringClient.Recv(&player.msg)
 		}
-		if player.msg.msgType != NEXT {
-			player.msg.printUnexpectedType()
-		}
+		player.msg.inspectType(NEXT)
 		masterSuit := player.getMasterSuit()
 		hasMasterSuit := player.deckHasMasterSuit(masterSuit)
 		fmt.Println("Your turn!")
@@ -260,6 +256,7 @@ func (player *Player) Play() {
 				fmt.Println("Invalid card!")
 				continue
 			}
+			/* broadcast HEARTS_BROKEN */
 			if !player.isHeartsBroken && player.deck.cards[cardIt].isSuitEqual(HEARTS) {
 				player.msg.msgType = HEARTS_BROKEN
 				player.sendForAll(&player.msg)
@@ -268,7 +265,7 @@ func (player *Player) Play() {
 		}
 	}
 
-	fmt.Printf("Ok!\n\n")
+	fmt.Println("Ok!")
 	player.deck.setCardUsed(cardIt)
 	player.sendCardsToNextPlayer(cardIt)
 }
@@ -280,26 +277,13 @@ func (player *Player) WaitForAllCards() {
 		player.isHeartsBroken = true
 		player.ringClient.Recv(&player.msg)
 	}
-	if player.msg.msgType != NEXT {
-		player.msg.printUnexpectedType()
-	}
+	player.msg.inspectType(NEXT)
 }
 
 /* Should be called by round master */
 func (player *Player) InformRoundLoser() {
 	/* reset isRoundMaster */
 	player.isRoundMaster = false
-
-	masterSuit := player.getMasterSuit()
-	loserPosInIds := player.getMasterPosInIds()
-	/* obtain loser id */
-	for i := range NUM_PLAYERS {
-		if player.msg.cards[i].isSuitEqual(masterSuit) {
-			if player.msg.cards[i].rank > player.msg.cards[loserPosInIds].rank {
-				loserPosInIds = uint8(i)
-			}
-		}
-	}
 
 	sum := uint8(0)
 	/* obtain sum of points */
@@ -310,11 +294,28 @@ func (player *Player) InformRoundLoser() {
 			sum += QUEEN_SPADES_VAL
 		}
 	}
+	if sum == 0 {
+		fmt.Println("No one got points!")
+		player.msg.msgType = CONTINUE_GAME
+		player.sendForAll(&player.msg)
+		return
+	}
 
-	if loserPosInIds != player.positionInIds { /* loser is not round master */
+	masterSuit := player.getMasterSuit()
+	loserPosInIds := 0
+	/* obtain loser id */
+	for i := range NUM_PLAYERS {
+		if player.msg.cards[i].isSuitEqual(masterSuit) {
+			if player.msg.cards[i].rank > player.msg.cards[loserPosInIds].rank {
+				loserPosInIds = i
+			}
+		}
+	}
+
+	if player.clockWiseIds[loserPosInIds] != player.myId {
 		player.msg.msgType = ROUND_LOSER
 		player.msg.earnedPoints = sum
-		player.msg.sourceId = player.clockWiseIds[player.positionInIds]
+		player.msg.sourceId = player.myId
 		player.ringClient.Send(player.clockWiseIds[loserPosInIds], &player.msg)
 		/* wait for CONTINUE_GAME or MAX_PTS_REACHED */
 		player.ringClient.Recv(&player.msg)
@@ -324,9 +325,9 @@ func (player *Player) InformRoundLoser() {
 		} else if player.msg.msgType == MAX_PTS_REACHED {
 			player.isGameActive = false
 		} else {
-			player.msg.printUnexpectedType()
+			println("Message type not expected [%v]", player.msg.msgType)
 		}
-	} else { /* loser is round master */
+	} else {
 		player.points += sum
 		player.isRoundMaster = true
 		fmt.Println("You lost round!")
@@ -350,19 +351,18 @@ func (player *Player) IsThereAWinner() bool {
 func (player *Player) AnounceWinner() {
 	minPts := player.points
 	posInIds := player.positionInIds
-	for i := range NUM_PLAYERS {
-		if i == int(player.positionInIds) { /* ignore round master */
+	for i := range uint8(NUM_PLAYERS) {
+		if i == player.positionInIds {
 			continue
 		}
+
 		player.msg.msgType = PTS_QUERY
-		player.msg.sourceId = player.clockWiseIds[player.positionInIds]
+		player.msg.sourceId = player.myId
 		player.ringClient.Send(player.clockWiseIds[i], &player.msg)
 		player.ringClient.Recv(&player.msg)
-		if player.msg.msgType != PTS_REPLY {
-			player.msg.printUnexpectedType()
-		}
-		if player.msg.earnedPoints < minPts {
-			posInIds = uint8(i)
+		player.msg.inspectType(PTS_REPLY)
+		if player.msg.earnedPoints < uint8(minPts) {
+			posInIds = i
 		}
 	}
 	player.msg.msgType = GAME_WINNER
@@ -484,7 +484,7 @@ func (d *deck) getCardFromDeck(idx int) int {
 			j++
 		}
 	}
-	return -1
+	return CARD_INVALID
 }
 
 func (d *deck) setCardUsed(idx int) {
@@ -512,6 +512,9 @@ func (d *deck) printDeck() {
 	fmt.Printf("\n")
 }
 
-func (m *message) printUnexpectedType() {
-	println("Message type not expected [%v]", m.msgType)
+func (m *message) inspectType(typeT uint8) {
+	if m.msgType != typeT {
+		println("Message type not expected [%v]", m.msgType)
+		os.Exit(1)
+	}
 }
