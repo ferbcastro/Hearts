@@ -151,7 +151,7 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 /* Should be called by card Dealer */
 func (player *Player) DealCards() {
 	var numbers []int
-	for i := range TOTAL_CARDS {
+	for i := 0; i < TOTAL_CARDS; i++ {
 		numbers = append(numbers, i)
 	}
 	rand.Shuffle(len(numbers), func(i, j int) {
@@ -162,7 +162,7 @@ func (player *Player) DealCards() {
 
 	var idNextRoundHead uint8
 	pos := player.positionInIds
-	for i := range TOTAL_CARDS {
+	for i := 0; i < TOTAL_CARDS; i++ {
 		if (i%MAX_CARDS_PER_ROUND == 0) && (i != 0) {
 			if pos == player.positionInIds { /* dealer cards */
 				player.deck.initDeck(player.msg.cards)
@@ -197,7 +197,7 @@ func (player *Player) GetCards() {
 	player.msg.inspectType(CARDS)
 	fmt.Println("Got cards!")
 	player.deck.initDeck(player.msg.cards)
-	for i := range MAX_CARDS_PER_ROUND {
+	for i := 0; i < MAX_CARDS_PER_ROUND; i++ {
 		if player.deck.cards[i].isCardEqual(TWO, CLUBS) {
 			player.isRoundMaster = true
 			break
@@ -287,7 +287,7 @@ func (player *Player) InformRoundLoser() {
 
 	sum := uint8(0)
 	/* obtain sum of points */
-	for i := range NUM_PLAYERS {
+	for i := 0; i < NUM_PLAYERS; i++ {
 		if player.msg.cards[i].isSuitEqual(HEARTS) {
 			sum += HEARTS_VAL
 		} else if player.msg.cards[i].isCardEqual(QUEEN, SPADES) {
@@ -304,7 +304,7 @@ func (player *Player) InformRoundLoser() {
 	masterSuit := player.getMasterSuit()
 	loserPosInIds := 0
 	/* obtain loser id */
-	for i := range NUM_PLAYERS {
+	for i := 0; i < NUM_PLAYERS; i++ {
 		if player.msg.cards[i].isSuitEqual(masterSuit) {
 			if player.msg.cards[i].rank > player.msg.cards[loserPosInIds].rank {
 				loserPosInIds = i
@@ -351,7 +351,7 @@ func (player *Player) IsThereAWinner() bool {
 func (player *Player) AnounceWinner() {
 	minPts := player.points
 	posInIds := player.positionInIds
-	for i := range uint8(NUM_PLAYERS) {
+	for i := uint8(0); i < NUM_PLAYERS; i++ {
 		if i == player.positionInIds {
 			continue
 		}
