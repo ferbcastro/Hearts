@@ -1,6 +1,7 @@
-package TokenRing
+package Hearts
 
 import (
+	"Src/TokenRing"
 	"fmt"
 	"log"
 	"math/rand"
@@ -91,7 +92,7 @@ type deck struct {
 }
 
 type Player struct {
-	ringClient     TokenRingClient
+	ringClient     TokenRing.TokenRingClient
 	clockWiseIds   []uint8
 	positionInIds  uint8
 	myId           uint8
@@ -146,8 +147,6 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 	player.deck.cardsLeft = 0
 	player.isRoundMaster = false
 	player.isGameActive = true
-	fmt.Println("DEBUG: ids =", player.clockWiseIds)
-	fmt.Println("DEBUG: pos =", player.positionInIds)
 }
 
 /* Should be called by card Dealer */

@@ -16,7 +16,7 @@ const (
 
 /* Other constants */
 const (
-	DATA_SIZE   = 1024 // dunno
+	DATA_SIZE   = 512 // dunno
 	TOKEN_FREE  = 0
 	VALID_PKG   = 1
 	FORWARD_PKG = 2

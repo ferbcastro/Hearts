@@ -27,8 +27,6 @@ func (client *TokenRingClient) init(ipaddr string) int {
 	// Register all types that may be transmitted
 	gob.Register(TokenRingPackage{})
 	gob.Register(bootData{})
-	gob.Register(Message{})
-    gob.Register(Card{})
 
 	return 0
 }
