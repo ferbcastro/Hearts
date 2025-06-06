@@ -76,7 +76,7 @@ const (
 	BEGIN_ROUND
 )
 
-type message struct {
+type Message struct {
 	Cards          [MAX_CARDS_PER_ROUND]Card
 	MsgType        uint8
 	NumPlayedCards uint8
@@ -96,7 +96,7 @@ type Player struct {
 	positionInIds  uint8
 	myId           uint8
 	deck           deck
-	msg            message
+	msg            Message
 	points         uint8
 	isRoundMaster  bool
 	isCardDealer   bool
@@ -515,7 +515,7 @@ func (d *deck) printDeck() {
 	fmt.Printf("\n")
 }
 
-func (m *message) inspectType(typeT uint8) {
+func (m *Message) inspectType(typeT uint8) {
 	if m.MsgType != typeT {
 		println("Message type not expected [%v]", m.MsgType)
 		os.Exit(1)
