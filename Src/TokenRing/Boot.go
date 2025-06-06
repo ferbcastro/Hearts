@@ -28,6 +28,7 @@ func (client *TokenRingClient) init(ipaddr string) int {
 	gob.Register(TokenRingPackage{})
 	gob.Register(bootData{})
 	gob.Register(Message{})
+    gob.Register(Card{})
 
 	return 0
 }
