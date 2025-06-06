@@ -1,7 +1,7 @@
 package main
 
 import (
-	"Src/Hearts"
+	"Src/TokenRing"
 	"fmt"
 	"log"
 	"os"
@@ -14,7 +14,7 @@ func usage() {
 }
 
 func main() {
-	var player Hearts.Player
+	var player TokenRing.Player
 
 	args := os.Args[1:]
 	if len(args) < 1 {

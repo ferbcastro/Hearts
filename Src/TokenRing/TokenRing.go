@@ -16,7 +16,7 @@ const (
 
 /* Other constants */
 const (
-	DATA_SIZE   = 128 // dunno
+	DATA_SIZE   = 1024 // dunno
 	TOKEN_FREE  = 0
 	VALID_PKG   = 1
 	FORWARD_PKG = 2
@@ -44,7 +44,7 @@ func (client *TokenRingClient) recv() int {
 	client.recvPkg = TokenRingPackage{}
 	ret := client.sock.Recv(buffer)
 	if ret <= 0 {
-		log.Println("TokenRingClient: failed to receive package")
+		//log.Println("TokenRingClient: failed to receive package")
 		return -1
 	}
 
@@ -107,7 +107,7 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 		// wait for the pkg to comeback
 		err = client.recv()
 		if err <= 0 {
-			log.Printf("Failed to recv pkg ")
+			//log.Printf("Failed to recv pkg ")
 			return err
 		}
 
@@ -137,7 +137,7 @@ func (client *TokenRingClient) Recv(out any) {
 	for {
 		err := client.recv()
 		if err <= 0 {
-			log.Printf("Failed to receive a pk\n")
+			//log.Printf("Failed to receive a pk\n")
 			continue
 		}
 
