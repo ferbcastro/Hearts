@@ -2,6 +2,7 @@ package main
 
 import (
 	"Src/Hearts"
+	"fmt"
 	"log"
 	"os"
 )
@@ -30,7 +31,7 @@ func main() {
 
 	for {
 		if !player.IsGameActive() {
-			println("Game ended!")
+			fmt.Println("Game ended!")
 			break
 		}
 
