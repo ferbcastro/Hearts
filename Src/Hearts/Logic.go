@@ -146,6 +146,7 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 	player.points = 0
 	player.deck.cardsLeft = 0
 	player.isRoundMaster = false
+	player.isGameActive = true
 }
 
 /* Should be called by card Dealer */
