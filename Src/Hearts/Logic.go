@@ -461,7 +461,7 @@ func (player *Player) WaitForResult() int {
 		} else {
 			player.msg.MsgType = CONTINUE_GAME
 			player.ringClient.Send(player.msg.SourceId, &player.msg)
-			fmt.Println("Warned round master that you are safe", MAX_POINTS)
+			fmt.Println("Warned round master that you are safe")
 		}
 		return WAIT_FOR_MORE
 	case PTS_QUERY:
