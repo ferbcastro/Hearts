@@ -245,7 +245,6 @@ func (player *Player) Play() {
 				fmt.Println("Invalid card!")
 				continue
 			}
-			log.Println("DEBUG:", card)
 			if card.isSuitEqual(HEARTS) && !player.isHeartsBroken {
 				fmt.Println("Invalid card! Hearts not broken!")
 				continue
@@ -254,6 +253,7 @@ func (player *Player) Play() {
 		}
 		player.msg.MasterSuit = card.Suit
 	case false:
+		fmt.Println("Waiting for turn!")
 		for {
 			player.ringClient.Recv(&player.msg)
 			if player.msg.MsgType == HEARTS_BROKEN {
@@ -290,7 +290,7 @@ func (player *Player) Play() {
 		}
 	}
 
-	fmt.Printf("Ok!\n\n")
+	fmt.Printf("Ok!\n")
 	cardCopy := *card
 	player.deck.setCardUsed(selected - 1)
 
@@ -299,6 +299,7 @@ func (player *Player) Play() {
 	player.msg.Cards[player.myPosition] = cardCopy
 	next = (player.myPosition + 1) % NUM_PLAYERS
 	player.ringClient.Send(player.clockWiseIds[next], &player.msg)
+	fmt.Printf("Card sent!\n\n")
 }
 
 func (player *Player) SetHeartsBroken() {
