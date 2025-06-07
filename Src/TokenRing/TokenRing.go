@@ -12,6 +12,7 @@ const (
 	BOOT          // Pkg used to bootstrap the ring
 	FORWARD       // Pkg used to test the ring
 	RING_COMPLETE // Pkg used to communicate the ring is complete
+	BROADCAST
 )
 
 /* Other constants */
@@ -96,6 +97,9 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 
 	client.prepareSendPkg(dest, DATA, data)
 
+    var i byte
+
+    //log.Printf("Sending from %d to %d pkg %d", client.sendPkg.Src, client.sendPkg.Dest, client.sendPkg.Serial)
 	var err int
 	for {
 		err = client.send()
@@ -104,6 +108,7 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 			return -1
 		}
 
+        i++
 		// wait for the pkg to comeback
 		err = client.recv()
 		if err <= 0 {
@@ -112,7 +117,7 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 		}
 
 		// check pkg and free token
-		if client.recvPkg.Src == client.id && client.recvPkg.Serial == client.serial {
+		if client.recvPkg.Src == client.id && client.recvPkg.Serial == client.serial && client.recvPkg.Ack == 1 {
 			client.sendPkg.TokenBusy = 0
 			err = client.send()
 			if err <= 0 {
@@ -122,6 +127,7 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 			break
 		}
 	}
+    log.Printf(" Sent %d times\n", i)
 	return err
 }
 
@@ -148,14 +154,17 @@ func (client *TokenRingClient) Recv(out any) {
 				client.sendPkg.TokenBusy = 1
 				return
 			}
-		} else {
-			if client.recvPkg.Dest == client.id {
+		} else if out != nil {
+			if client.recvPkg.Dest == client.id || client.recvPkg.PkgType == BROADCAST{
 				err = client.recvPkg.decodeFromDataField(out)
 				if err != 0 {
 					log.Printf("Failed to decode pkg data\n")
 					continue
 				}
-				client.hasToForward = true
+                //log.Printf("Received from %d to %d pkg %d\n", client.recvPkg.Src, client.recvPkg.Dest, client.recvPkg.Serial)
+                client.recvPkg.Ack = 1
+				//client.hasToForward = false
+                client.forward()
 				return
 			}
 		}
@@ -163,3 +172,48 @@ func (client *TokenRingClient) Recv(out any) {
 		client.forward()
 	}
 }
+
+func (client *TokenRingClient) Broadcast(data any) int {
+
+	if client.waitForToken {
+		client.Recv(nil)
+	} else {
+		client.waitForToken = true
+
+	}
+
+	client.prepareSendPkg(0, BROADCAST, data)
+
+    var i byte
+
+	var err int
+	for {
+		err = client.send()
+		if err <= 0 {
+			log.Printf("Failed to send data ")
+			return -1
+		}
+
+        i++
+		// wait for the pkg to comeback
+		err = client.recv()
+		if err <= 0 {
+			//log.Printf("Failed to recv pkg ")
+			return err
+		}
+
+		// check pkg and free token
+		if client.recvPkg.Src == client.id && client.recvPkg.Serial == client.serial {
+			client.sendPkg.TokenBusy = 0
+			err = client.send()
+			if err <= 0 {
+				log.Printf("Failed to send data ")
+				return -1
+			}
+			break
+		}
+	}
+	return err
+}
+
+
