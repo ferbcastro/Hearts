@@ -258,10 +258,12 @@ func (player *Player) Play() {
 			player.ringClient.Recv(&player.msg)
 			if player.msg.MsgType == HEARTS_BROKEN {
 				player.SetHeartsBroken()
+				continue
 			}
 			if player.msg.MsgType == NEXT {
 				break
 			}
+			fmt.Printf("Unexpected! [%v]\n", player.msg.MsgType)
 		}
 		fmt.Println("Your turn!")
 		player.deck.printDeck()
