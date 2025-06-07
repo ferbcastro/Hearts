@@ -257,8 +257,7 @@ func (player *Player) Play() {
 	case false:
 		fmt.Println("Waiting for turn!")
 		for {
-            player.msg = Message{}
-			player.ringClient.Recv(&player.msg)
+			player.recvMsg()
 			if player.msg.MsgType == HEARTS_BROKEN {
 				player.SetHeartsBroken()
 				continue
@@ -289,7 +288,7 @@ func (player *Player) Play() {
 			if !player.isHeartsBroken && card.isSuitEqual(HEARTS) {
 				player.SetHeartsBroken()
 				player.msg.MsgType = HEARTS_BROKEN
-				player.ringClient.Broadcast(&player.msg)
+				player.broadcastMsg()
 			}
 			break
 		}
@@ -303,8 +302,8 @@ func (player *Player) Play() {
 	player.msg.NumPlayedCards++
 	player.msg.Cards[player.myPosition] = cardCopy
 	next = (player.myPosition + 1) % NUM_PLAYERS
-	player.ringClient.Send(player.clockWiseIds[next], &player.msg)
-	fmt.Printf("Card sent! [%v]\n\n", player.msg.MsgType)
+	player.sendMsg(player.clockWiseIds[next])
+	fmt.Printf("Card sent!\n\n")
 }
 
 func (player *Player) SetHeartsBroken() {
@@ -319,7 +318,7 @@ func (player *Player) ResetHeartsBroken() {
 /* Should be called by round master */
 func (player *Player) WaitForAllCards() {
 	for {
-		player.ringClient.Recv(&player.msg)
+		player.recvMsg()
 		if player.msg.MsgType == HEARTS_BROKEN {
 			player.SetHeartsBroken()
 		}
@@ -365,10 +364,10 @@ func (player *Player) InformRoundLoser() {
 		player.msg.MsgType = ROUND_LOSER
 		player.msg.EarnedPoints = sum
 		player.msg.SourceId = player.myId
-		player.ringClient.Send(loserId, &player.msg)
+		player.sendMsg(loserId)
 		/* wait for CONTINUE_GAME or MAX_PTS_REACHED */
 		for {
-			player.ringClient.Recv(&player.msg)
+			player.recvMsg()
 			if player.msg.MsgType == CONTINUE_GAME {
 				player.msg.MsgType = CONTINUE_GAME
 				player.ringClient.Broadcast(&player.msg)
@@ -389,7 +388,7 @@ func (player *Player) InformRoundLoser() {
 			player.isGameActive = false
 		} else {
 			player.msg.MsgType = CONTINUE_GAME
-			player.ringClient.Broadcast(&player.msg)
+			player.broadcastMsg()
 		}
 	}
 }
@@ -418,7 +417,7 @@ func (player *Player) AnounceWinner() {
 		player.msg.SourceId = player.myId
 		player.ringClient.Send(dest, &player.msg)
 		for {
-			player.ringClient.Recv(&player.msg)
+			player.recvMsg()
 			if player.msg.MsgType == PTS_REPLY && player.msg.SourceId == dest {
 				break
 			}
@@ -437,15 +436,15 @@ func (player *Player) AnounceWinner() {
 	fmt.Printf("We have a winner!\n\n")
 
 	player.msg.MsgType = GAME_WINNER
-	player.ringClient.Send(idWinner, &player.msg)
+	player.sendMsg(idWinner)
 	player.msg.MsgType = END_GAME
-	player.ringClient.Broadcast(&player.msg)
+	player.broadcastMsg()
 }
 
 /* Players should call this (except round master) */
 func (player *Player) WaitForResult() int {
 	fmt.Println("Waiting for result...")
-	player.ringClient.Recv(&player.msg)
+	player.recvMsg()
 	fmt.Println("Result got!")
 	switch player.msg.MsgType {
 	case CONTINUE_GAME:
@@ -457,19 +456,17 @@ func (player *Player) WaitForResult() int {
 		player.points += player.msg.EarnedPoints
 		if player.points >= MAX_POINTS {
 			player.msg.MsgType = MAX_PTS_REACHED
-			player.ringClient.Send(player.msg.SourceId, &player.msg)
-			fmt.Println("Warned round master that you reached", MAX_POINTS)
+			player.sendMsg(player.msg.SourceId)
 		} else {
 			player.msg.MsgType = CONTINUE_GAME
 			player.ringClient.Send(player.msg.SourceId, &player.msg)
-			fmt.Println("Warned round master that you are safe")
 		}
 		return WAIT_FOR_MORE
 	case PTS_QUERY:
 		player.msg.MsgType = PTS_REPLY
 		player.msg.SourceId = player.myId
 		player.msg.EarnedPoints = player.points
-		player.ringClient.Send(player.msg.SourceId, &player.msg)
+		player.sendMsg(player.msg.SourceId)
 		return WAIT_FOR_MORE
 	case GAME_WINNER:
 		fmt.Printf("You won!\n\n")
@@ -514,14 +511,21 @@ func (player *Player) deckHasMasterSuit(masterSuit int8) bool {
 	return false
 }
 
-// func (p *Player) sendForAll(something any) {
-// 	for it := range p.clockWiseIds {
-// 		if p.clockWiseIds[it] == p.myId {
-// 			continue
-// 		}
-// 		p.ringClient.Send(p.clockWiseIds[it], something)
-// 	}
-// }
+func (player *Player) recvMsg() {
+	var msg Message
+	player.ringClient.Recv(&msg)
+	player.msg = msg
+}
+
+func (player *Player) broadcastMsg() {
+	msg := player.msg
+	player.ringClient.Broadcast(&msg)
+}
+
+func (player *Player) sendMsg(dest byte) {
+	msg := player.msg
+	player.ringClient.Send(dest, &msg)
+}
 
 func (d *deck) initDeck(myCards [CARDS_PER_ROUND]Card) {
 	d.cards = myCards
