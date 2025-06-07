@@ -291,11 +291,12 @@ func (player *Player) Play() {
 	}
 
 	fmt.Printf("Ok!\n\n")
+	cardCopy := *card
 	player.deck.setCardUsed(selected - 1)
 
 	player.msg.MsgType = NEXT
 	player.msg.NumPlayedCards++
-	player.msg.Cards[player.myPosition] = *card
+	player.msg.Cards[player.myPosition] = cardCopy
 	next = (player.myPosition + 1) % NUM_PLAYERS
 	player.ringClient.Send(player.clockWiseIds[next], &player.msg)
 }
