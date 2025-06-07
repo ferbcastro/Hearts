@@ -109,7 +109,7 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 	var ids []byte
 	var ip string
 	var ips []string
-	
+
 	if isRingCreator {
 		/* read ips */
 		file, err := os.Open("./create-ring-ips.txt")
@@ -126,7 +126,7 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 				break
 			}
 		}
-        log.Println("IPs", ips[0])
+		log.Println("IPs", ips[0])
 		/* creat ring */
 		ids = player.ringClient.CreateRing(ips)
 		player.clockWiseIds = ids
@@ -366,7 +366,8 @@ func (player *Player) InformRoundLoser() {
 				player.msg.MsgType = CONTINUE_GAME
 				player.sendForAll(&player.msg)
 				break
-			} else if player.msg.MsgType == MAX_PTS_REACHED {
+			}
+			if player.msg.MsgType == MAX_PTS_REACHED {
 				player.isGameActive = false
 				break
 			}
@@ -374,7 +375,7 @@ func (player *Player) InformRoundLoser() {
 	} else {
 		player.points += sum
 		player.isRoundMaster = true
-		fmt.Printf("You lost round!\n\n")
+		fmt.Printf("Round master lost round!\n\n")
 		if player.points >= MAX_POINTS {
 			player.isGameActive = false
 		} else {
@@ -434,10 +435,12 @@ func (player *Player) AnounceWinner() {
 
 /* Players should call this (except round master) */
 func (player *Player) WaitForResult() {
+	fmt.Println("Waiting for result...")
 	player.ringClient.Recv(&player.msg)
+	fmt.Println("Result got!")
 	switch player.msg.MsgType {
 	case CONTINUE_GAME:
-		//fmt.Printf("New round!\n\n")
+		break
 	case ROUND_LOSER:
 		fmt.Printf("You lost round!\n\n")
 		player.isRoundMaster = true
@@ -458,7 +461,7 @@ func (player *Player) WaitForResult() {
 		player.ringClient.Send(player.msg.SourceId, &player.msg)
 		player.WaitForResult() /* recursive call */
 	case GAME_WINNER:
-		fmt.Println("You won!\n\n")
+		fmt.Printf("You won!\n\n")
 		player.WaitForResult() /* recursive call */
 	case END_GAME:
 		player.isGameActive = false
@@ -500,7 +503,7 @@ func (player *Player) deckHasMasterSuit(masterSuit int8) bool {
 
 func (p *Player) sendForAll(something any) {
 	for it := range p.clockWiseIds {
-		if it == p.myPosition {
+		if p.clockWiseIds[it] == p.myId {
 			continue
 		}
 		p.ringClient.Send(p.clockWiseIds[it], something)
