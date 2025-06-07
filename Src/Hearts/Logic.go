@@ -173,6 +173,7 @@ func (player *Player) DealCards() {
 		}
 		if player.clockWiseIds[i] == player.myId {
 			player.deck.initDeck(cards)
+            fmt.Println("Got cards!")
 		} else {
 			player.ringClient.Send(player.clockWiseIds[i], &cards)
 		}
@@ -528,7 +529,7 @@ func (c *Card) isCardEqual(rank, suit int8) bool {
 }
 
 func (card *Card) printCard(it int) {
-	//fmt.Println("DEBUG:", card.Rank, card.Suit)
+	log.Println("DEBUG:", card.Rank, card.Suit)
 	fmt.Printf("%v: %v%v ", it, ranks[card.Rank], suits[card.Suit])
 }
 
