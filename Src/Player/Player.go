@@ -1,33 +1,71 @@
 package main
 
 import (
-  "Src/TokenRing"
-  "fmt"
-)  
+	"Src/Hearts"
+	"fmt"
+	"os"
+)
 
-func InitPlayer() {
+const NUM_PLAYERS = 4
 
+func usage() {
+	fmt.Println("Use -c to create ring; -e to enter ring")
+	fmt.Println("For ring creator: enter your ip followed by other players' ip",
+		"in clockwise order")
+	fmt.Println("For ring user: enter your ip")
 }
 
 func main() {
-  var client TokenRing.TokenRingClient
-  var ip string
+	var player Hearts.Player
 
-  fmt.Print("Enter ip: ")
-  _, err := fmt.Scanln(&ip)
-  if err != nil {
-      fmt.Println("Error reading input:", err)
-  }
-
-
-  client.EnterRing(ip)
-
-	type a struct {
-		nome string
+	args := os.Args[1:]
+	if len(args) < 1 {
+		usage()
+		os.Exit(1)
 	}
 
-	var b a
-	client.Recv(&b)
+	switch args[0] {
+	case "-c":
+		player.InitPlayer(true)
+	case "-e":
+		player.InitPlayer(false)
+	case "-h":
+		usage()
+	}
 
-	fmt.Printf("%+v\n", b)
+	for {
+		if !player.IsGameActive() {
+			fmt.Println("Game ended!")
+			break
+		}
+
+		fmt.Printf("New round!\n\n")
+
+		if player.NoCardsLeft() {
+			player.ResetHeartsBroken()
+			if player.IsCardDealer() {
+				player.DealCards()
+			} else {
+				player.GetCards()
+			}
+		}
+
+		player.Play()
+		if player.IsRoundMaster() {
+			player.WaitForAllCards()
+			player.InformRoundLoser()
+			if player.IsThereAWinner() {
+				player.AnounceWinner()
+			}
+		} else {
+			for {
+				ret := player.WaitForResult()
+				if ret == Hearts.ALL_RESULTS_GOT {
+					break
+				}
+			}
+		}
+
+		player.PrintPoints()
+	}
 }

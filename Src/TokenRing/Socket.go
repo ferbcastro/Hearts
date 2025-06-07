@@ -49,11 +49,11 @@ func (sock *SockDgram) CloseSocket() int {
 }
 
 func (sock *SockDgram) Recv(arr []byte) int {
-    timeout := 100 * time.Millisecond
-    sock.conn.SetReadDeadline(time.Now().Add(timeout))
+	timeout := 400 * time.Millisecond
+	sock.conn.SetReadDeadline(time.Now().Add(timeout))
 	numBytes, _, err := sock.conn.ReadFromUDP(arr)
 	if err != nil {
-		log.Printf("ReadFromUDP failed [%v] read [%v] bytes\n", err, numBytes)
+		//log.Printf("ReadFromUDP failed [%v] read [%v] bytes\n", err, numBytes)
 		return 0
 	}
 
