@@ -371,13 +371,14 @@ func (player *Player) InformRoundLoser() {
 			if player.msg.MsgType == CONTINUE_GAME {
 				player.msg.MsgType = CONTINUE_GAME
 				player.sendForAll(&player.msg)
+				fmt.Println("Round loser did not reach", MAX_POINTS)
 				break
 			}
 			if player.msg.MsgType == MAX_PTS_REACHED {
 				player.isGameActive = false
+				fmt.Println("Round loser reached", MAX_POINTS)
 				break
 			}
-			fmt.Printf("Unexpected [%v]\n", player.msg.MsgType)
 		}
 	} else {
 		player.points += sum
@@ -456,9 +457,11 @@ func (player *Player) WaitForResult() int {
 		if player.points >= MAX_POINTS {
 			player.msg.MsgType = MAX_PTS_REACHED
 			player.ringClient.Send(player.msg.SourceId, &player.msg)
+			fmt.Println("Warned round master that you reached", MAX_POINTS)
 		} else {
 			player.msg.MsgType = CONTINUE_GAME
 			player.ringClient.Send(player.msg.SourceId, &player.msg)
+			fmt.Println("Warned round master that you are safe", MAX_POINTS)
 		}
 		return WAIT_FOR_MORE
 	case PTS_QUERY:
