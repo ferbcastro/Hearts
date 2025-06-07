@@ -15,6 +15,8 @@ const NUM_PLAYERS = 4
 const MAX_POINTS = 50
 const HEARTS_VAL = 1
 const QUEEN_SPADES_VAL = 13
+const ALL_RESULTS_GOT = 1
+const WAIT_FOR_MORE = 2
 
 const (
 	DIAMONDS = iota
@@ -439,13 +441,14 @@ func (player *Player) AnounceWinner() {
 }
 
 /* Players should call this (except round master) */
-func (player *Player) WaitForResult() {
+func (player *Player) WaitForResult() int {
 	fmt.Println("Waiting for result...")
 	player.ringClient.Recv(&player.msg)
 	fmt.Println("Result got!")
 	switch player.msg.MsgType {
 	case CONTINUE_GAME:
 		fmt.Printf("Game goes on!\n\n")
+		return ALL_RESULTS_GOT
 	case ROUND_LOSER:
 		fmt.Printf("You lost round!\n\n")
 		player.isRoundMaster = true
@@ -453,27 +456,25 @@ func (player *Player) WaitForResult() {
 		if player.points >= MAX_POINTS {
 			player.msg.MsgType = MAX_PTS_REACHED
 			player.ringClient.Send(player.msg.SourceId, &player.msg)
-			player.WaitForResult() /* recursive call */
 		} else {
 			player.msg.MsgType = CONTINUE_GAME
 			player.ringClient.Send(player.msg.SourceId, &player.msg)
-			player.WaitForResult() /* recursive call */
 		}
+		return WAIT_FOR_MORE
 	case PTS_QUERY:
 		player.msg.MsgType = PTS_REPLY
 		player.msg.SourceId = player.myId
 		player.msg.EarnedPoints = player.points
 		player.ringClient.Send(player.msg.SourceId, &player.msg)
-		player.WaitForResult() /* recursive call */
+		return WAIT_FOR_MORE
 	case GAME_WINNER:
 		fmt.Printf("You won!\n\n")
-		player.WaitForResult() /* recursive call */
+		return WAIT_FOR_MORE
 	case END_GAME:
 		player.isGameActive = false
-	default:
-		fmt.Printf("Unexpected [%v]\n", player.msg.MsgType)
-		player.WaitForResult() /* recursive call */
+		return ALL_RESULTS_GOT
 	}
+	return WAIT_FOR_MORE
 }
 
 func (player *Player) PrintPoints() {

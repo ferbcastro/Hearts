@@ -24,13 +24,13 @@ func main() {
 		os.Exit(1)
 	}
 
-    switch(args[0]) {	
-    case "-c":
+	switch args[0] {
+	case "-c":
 		player.InitPlayer(true)
 	case "-e":
 		player.InitPlayer(false)
 	case "-h":
-        usage()
+		usage()
 	}
 
 	for {
@@ -39,7 +39,7 @@ func main() {
 			break
 		}
 
-        fmt.Printf("New round!\n\n")
+		fmt.Printf("New round!\n\n")
 
 		if player.NoCardsLeft() {
 			player.ResetHeartsBroken()
@@ -58,7 +58,12 @@ func main() {
 				player.AnounceWinner()
 			}
 		} else {
-			player.WaitForResult()
+			for {
+				ret := player.WaitForResult()
+				if ret == Hearts.ALL_RESULTS_GOT {
+					break
+				}
+			}
 		}
 
 		player.PrintPoints()
