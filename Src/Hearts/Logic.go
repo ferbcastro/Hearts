@@ -291,7 +291,7 @@ func (player *Player) Play() {
 	}
 
 	fmt.Printf("Ok!\n\n")
-	player.deck.setCardUsed(selected)
+	player.deck.setCardUsed(selected - 1)
 
 	player.msg.MsgType = NEXT
 	player.msg.NumPlayedCards++
@@ -440,7 +440,7 @@ func (player *Player) WaitForResult() {
 	fmt.Println("Result got!")
 	switch player.msg.MsgType {
 	case CONTINUE_GAME:
-		break
+		fmt.Printf("Game goes on!\n\n")
 	case ROUND_LOSER:
 		fmt.Printf("You lost round!\n\n")
 		player.isRoundMaster = true
@@ -469,7 +469,7 @@ func (player *Player) WaitForResult() {
 }
 
 func (player *Player) PrintPoints() {
-	fmt.Printf("Your points: %v\n\n", player.points)
+	fmt.Printf("\nYour points: %v\n\n", player.points)
 }
 
 func (player *Player) IsRoundMaster() bool {
@@ -556,7 +556,7 @@ func (player *Player) printRecvCards() {
 
 func (deck *deck) printDeck() {
 	fmt.Println("Your cards:")
-	for i := range deck.cards {
+	for i := 0; i < deck.cardsLeft; i++ {
 		deck.cards[i].printCard(i + 1)
 		if i%7 == 0 && i != 0 {
 			fmt.Println()
