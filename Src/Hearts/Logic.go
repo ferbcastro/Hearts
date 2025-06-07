@@ -257,6 +257,7 @@ func (player *Player) Play() {
 	case false:
 		fmt.Println("Waiting for turn!")
 		for {
+            player.msg = Message{}
 			player.ringClient.Recv(&player.msg)
 			if player.msg.MsgType == HEARTS_BROKEN {
 				player.SetHeartsBroken()
@@ -303,7 +304,7 @@ func (player *Player) Play() {
 	player.msg.Cards[player.myPosition] = cardCopy
 	next = (player.myPosition + 1) % NUM_PLAYERS
 	player.ringClient.Send(player.clockWiseIds[next], &player.msg)
-	fmt.Printf("Card sent!\n\n")
+	fmt.Printf("Card sent! [%v]\n\n", player.msg.MsgType)
 }
 
 func (player *Player) SetHeartsBroken() {
