@@ -134,7 +134,7 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 		player.clockWiseIds = ids
 		player.myPosition = 0
 		/* broadcast ids */
-		player.sendForAll(&ids)
+		player.ringClient.Broadcast(&ids)
 	} else {
 		/* enter ring */
 		fmt.Print("Enter your ip: ")
@@ -288,7 +288,7 @@ func (player *Player) Play() {
 			if !player.isHeartsBroken && card.isSuitEqual(HEARTS) {
 				player.SetHeartsBroken()
 				player.msg.MsgType = HEARTS_BROKEN
-				player.sendForAll(&player.msg)
+				player.ringClient.Broadcast(&player.msg)
 			}
 			break
 		}
@@ -370,7 +370,7 @@ func (player *Player) InformRoundLoser() {
 			player.ringClient.Recv(&player.msg)
 			if player.msg.MsgType == CONTINUE_GAME {
 				player.msg.MsgType = CONTINUE_GAME
-				player.sendForAll(&player.msg)
+				player.ringClient.Broadcast(&player.msg)
 				fmt.Println("Round loser did not reach", MAX_POINTS)
 				break
 			}
@@ -388,7 +388,7 @@ func (player *Player) InformRoundLoser() {
 			player.isGameActive = false
 		} else {
 			player.msg.MsgType = CONTINUE_GAME
-			player.sendForAll(&player.msg)
+			player.ringClient.Broadcast(&player.msg)
 		}
 	}
 }
@@ -438,7 +438,7 @@ func (player *Player) AnounceWinner() {
 	player.msg.MsgType = GAME_WINNER
 	player.ringClient.Send(idWinner, &player.msg)
 	player.msg.MsgType = END_GAME
-	player.sendForAll(&player.msg)
+	player.ringClient.Broadcast(&player.msg)
 }
 
 /* Players should call this (except round master) */
@@ -513,14 +513,14 @@ func (player *Player) deckHasMasterSuit(masterSuit int8) bool {
 	return false
 }
 
-func (p *Player) sendForAll(something any) {
-	for it := range p.clockWiseIds {
-		if p.clockWiseIds[it] == p.myId {
-			continue
-		}
-		p.ringClient.Send(p.clockWiseIds[it], something)
-	}
-}
+// func (p *Player) sendForAll(something any) {
+// 	for it := range p.clockWiseIds {
+// 		if p.clockWiseIds[it] == p.myId {
+// 			continue
+// 		}
+// 		p.ringClient.Send(p.clockWiseIds[it], something)
+// 	}
+// }
 
 func (d *deck) initDeck(myCards [CARDS_PER_ROUND]Card) {
 	d.cards = myCards

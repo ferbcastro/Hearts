@@ -97,9 +97,9 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 
 	client.prepareSendPkg(dest, DATA, data)
 
-    var i byte
+	var i byte
 
-    //log.Printf("Sending from %d to %d pkg %d", client.sendPkg.Src, client.sendPkg.Dest, client.sendPkg.Serial)
+	//log.Printf("Sending from %d to %d pkg %d", client.sendPkg.Src, client.sendPkg.Dest, client.sendPkg.Serial)
 	var err int
 	for {
 		err = client.send()
@@ -108,7 +108,7 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 			return -1
 		}
 
-        i++
+		i++
 		// wait for the pkg to comeback
 		err = client.recv()
 		if err <= 0 {
@@ -127,7 +127,7 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 			break
 		}
 	}
-    log.Printf(" Sent %d times\n", i)
+	log.Printf(" Sent %d times\n", i)
 	return err
 }
 
@@ -155,16 +155,16 @@ func (client *TokenRingClient) Recv(out any) {
 				return
 			}
 		} else if out != nil {
-			if client.recvPkg.Dest == client.id || client.recvPkg.PkgType == BROADCAST{
+			if client.recvPkg.Dest == client.id || client.recvPkg.PkgType == BROADCAST {
 				err = client.recvPkg.decodeFromDataField(out)
 				if err != 0 {
 					log.Printf("Failed to decode pkg data\n")
 					continue
 				}
-                //log.Printf("Received from %d to %d pkg %d\n", client.recvPkg.Src, client.recvPkg.Dest, client.recvPkg.Serial)
-                client.recvPkg.Ack = 1
+				//log.Printf("Received from %d to %d pkg %d\n", client.recvPkg.Src, client.recvPkg.Dest, client.recvPkg.Serial)
+				client.recvPkg.Ack = 1
 				//client.hasToForward = false
-                client.forward()
+				client.forward()
 				return
 			}
 		}
@@ -184,7 +184,7 @@ func (client *TokenRingClient) Broadcast(data any) int {
 
 	client.prepareSendPkg(0, BROADCAST, data)
 
-    var i byte
+	var i byte
 
 	var err int
 	for {
@@ -194,7 +194,7 @@ func (client *TokenRingClient) Broadcast(data any) int {
 			return -1
 		}
 
-        i++
+		i++
 		// wait for the pkg to comeback
 		err = client.recv()
 		if err <= 0 {
@@ -215,5 +215,3 @@ func (client *TokenRingClient) Broadcast(data any) int {
 	}
 	return err
 }
-
-
