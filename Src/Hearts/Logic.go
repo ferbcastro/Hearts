@@ -4,6 +4,7 @@ import (
 	"Src/TokenRing"
 	"fmt"
 	"math/rand"
+    "log"
 )
 
 const CARDS_PER_ROUND = 13
@@ -162,7 +163,7 @@ func (player *Player) DealCards() {
 
 	numbersIt := 0
 	for i := 0; i < NUM_PLAYERS; i++ {
-		for j := 0; j < TOTAL_CARDS; j++ {
+		for j := 0; j < CARDS_PER_ROUND; j++ {
 			cards[j].Rank = numbers[numbersIt] % int8(len(ranks))
 			cards[j].Suit = numbers[numbersIt] / int8(len(ranks))
 			if cards[j].isCardEqual(TWO, CLUBS) {
@@ -229,10 +230,11 @@ func (player *Player) Play() {
 		for {
 			fmt.Print("Choose a card from your deck: ")
 			fmt.Scanln(&selected)
-			if card = player.deck.getCardFromDeck(selected); card == nil {
+			if card = player.deck.getCardFromDeck(selected-1); card == nil {
 				fmt.Println("Invalid card!")
 				continue
 			}
+            log.Println("DEBUG:", card)
 			if card.isSuitEqual(HEARTS) && !player.isHeartsBroken {
 				fmt.Println("Invalid card!")
 				continue
@@ -259,7 +261,7 @@ func (player *Player) Play() {
 		for {
 			fmt.Print("Choose a card from your deck: ")
 			fmt.Scanln(&selected)
-			if card = player.deck.getCardFromDeck(selected); card == nil {
+			if card = player.deck.getCardFromDeck(selected-1); card == nil {
 				fmt.Println("Invalid card!")
 				continue
 			}
@@ -520,13 +522,16 @@ func (c *Card) isCardEqual(rank, suit int8) bool {
 }
 
 func (card *Card) printCard(it int) {
+    //fmt.Println("DEBUG:", card.Rank, card.Suit)
 	fmt.Printf("%v: %v%v ", it, ranks[card.Rank], suits[card.Suit])
 }
 
 func (player *Player) printRecvCards() {
 	numPlayed := int(player.msg.NumPlayedCards)
-	it := player.myPosition + (NUM_PLAYERS-numPlayed)%NUM_PLAYERS
-	for {
+	it := (player.myPosition + NUM_PLAYERS - numPlayed)%NUM_PLAYERS
+    log.Println("it", it, "numPlayed", numPlayed)
+	fmt.Println("Cards played:")
+    for {
 		player.msg.Cards[it].printCard(int(it))
 		if it = (it + 1) % NUM_PLAYERS; it == player.myPosition {
 			break
@@ -536,10 +541,10 @@ func (player *Player) printRecvCards() {
 }
 
 func (deck *deck) printDeck() {
-	fmt.Print("Your cards: ")
+	fmt.Println("Your cards:")
 	for i := range deck.cards {
 		deck.cards[i].printCard(i + 1)
-		if i%7 == 0 {
+		if i%7 == 0 && i!=0 {
 			fmt.Println()
 		}
 	}
