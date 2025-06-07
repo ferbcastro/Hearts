@@ -2,9 +2,11 @@ package Hearts
 
 import (
 	"Src/TokenRing"
+	"bufio"
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 )
 
 const CARDS_PER_ROUND = 13
@@ -110,12 +112,21 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 	if isRingCreator {
 		/* read ips */
 		ips := make([]string, NUM_PLAYERS)
-		fmt.Print("Enter your ip: ")
-		fmt.Scanln(&ips[0])
-		fmt.Println("Now enter other players' ip in clockwise order")
-		for i := 1; i < NUM_PLAYERS; i++ {
-			fmt.Print("Enter ip: ")
-			fmt.Scanln(&ips[i])
+
+		file, err := os.Open("./create-ring-ips.txt")
+		if err != nil {
+			fmt.Println("Input file error:", err)
+			return
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		scanner.Split(bufio.ScanWords)
+		for scanner.Scan() {
+			ips = append(ips, scanner.Text())
+			if len(ips) == 4 {
+				break
+			}
 		}
 		/* creat ring */
 		ids = player.ringClient.CreateRing(ips)
@@ -173,7 +184,7 @@ func (player *Player) DealCards() {
 		}
 		if player.clockWiseIds[i] == player.myId {
 			player.deck.initDeck(cards)
-            fmt.Println("Got cards!")
+			fmt.Println("Got cards!")
 		} else {
 			player.ringClient.Send(player.clockWiseIds[i], &cards)
 		}

@@ -3,14 +3,16 @@ package main
 import (
 	"Src/Hearts"
 	"fmt"
-	"log"
 	"os"
 )
 
 const NUM_PLAYERS = 4
 
 func usage() {
-	log.Println("Use -c to create ring; -e to enter ring")
+	fmt.Println("Use -c to create ring; -e to enter ring")
+	fmt.Println("For ring creator: enter your ip followed by other players' ip",
+		"in clockwise order")
+	fmt.Println("For ring user: enter your ip")
 }
 
 func main() {
@@ -27,6 +29,8 @@ func main() {
 		player.InitPlayer(true)
 	case "-e":
 		player.InitPlayer(false)
+	case "-h":
+
 	}
 
 	for {
