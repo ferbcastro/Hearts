@@ -108,11 +108,10 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 	var myId byte
 	var ids []byte
 	var ip string
-
+	var ips []string
+	
 	if isRingCreator {
 		/* read ips */
-		ips := make([]string, NUM_PLAYERS)
-
 		file, err := os.Open("./create-ring-ips.txt")
 		if err != nil {
 			fmt.Println("Input file error:", err)
@@ -121,13 +120,13 @@ func (player *Player) InitPlayer(isRingCreator bool) {
 		defer file.Close()
 
 		scanner := bufio.NewScanner(file)
-		scanner.Split(bufio.ScanWords)
 		for scanner.Scan() {
 			ips = append(ips, scanner.Text())
-			if len(ips) == 4 {
+			if len(ips) == NUM_PLAYERS {
 				break
 			}
 		}
+        log.Println("IPs", ips[0])
 		/* creat ring */
 		ids = player.ringClient.CreateRing(ips)
 		player.clockWiseIds = ids
@@ -342,12 +341,6 @@ func (player *Player) InformRoundLoser() {
 			sum += QUEEN_SPADES_VAL
 		}
 	}
-	if sum == 0 {
-		fmt.Printf("No one got points!\n\n")
-		player.msg.MsgType = CONTINUE_GAME
-		player.sendForAll(&player.msg)
-		return
-	}
 
 	masterSuit := player.msg.MasterSuit
 	loserCard.Rank = -1
@@ -381,7 +374,7 @@ func (player *Player) InformRoundLoser() {
 	} else {
 		player.points += sum
 		player.isRoundMaster = true
-		fmt.Println("You lost round!")
+		fmt.Printf("You lost round!\n\n")
 		if player.points >= MAX_POINTS {
 			player.isGameActive = false
 		} else {
@@ -431,7 +424,7 @@ func (player *Player) AnounceWinner() {
 		}
 	}
 
-	fmt.Println("We have a winner!")
+	fmt.Printf("We have a winner!\n\n")
 
 	player.msg.MsgType = GAME_WINNER
 	player.ringClient.Send(idWinner, &player.msg)
@@ -444,9 +437,9 @@ func (player *Player) WaitForResult() {
 	player.ringClient.Recv(&player.msg)
 	switch player.msg.MsgType {
 	case CONTINUE_GAME:
-		fmt.Println("New round!")
+		//fmt.Printf("New round!\n\n")
 	case ROUND_LOSER:
-		fmt.Println("You lost round!")
+		fmt.Printf("You lost round!\n\n")
 		player.isRoundMaster = true
 		player.points += player.msg.EarnedPoints
 		if player.points >= MAX_POINTS {
@@ -465,7 +458,7 @@ func (player *Player) WaitForResult() {
 		player.ringClient.Send(player.msg.SourceId, &player.msg)
 		player.WaitForResult() /* recursive call */
 	case GAME_WINNER:
-		fmt.Println("You won!")
+		fmt.Println("You won!\n\n")
 		player.WaitForResult() /* recursive call */
 	case END_GAME:
 		player.isGameActive = false
@@ -473,7 +466,7 @@ func (player *Player) WaitForResult() {
 }
 
 func (player *Player) PrintPoints() {
-	fmt.Println("Your points:", player.points)
+	fmt.Printf("Your points: %v\n\n", player.points)
 }
 
 func (player *Player) IsRoundMaster() bool {
@@ -566,5 +559,5 @@ func (deck *deck) printDeck() {
 			fmt.Println()
 		}
 	}
-	fmt.Println()
+	fmt.Printf("\n\n")
 }
