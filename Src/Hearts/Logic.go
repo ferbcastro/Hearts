@@ -3,8 +3,8 @@ package Hearts
 import (
 	"Src/TokenRing"
 	"fmt"
+	"log"
 	"math/rand"
-    "log"
 )
 
 const CARDS_PER_ROUND = 13
@@ -230,13 +230,13 @@ func (player *Player) Play() {
 		for {
 			fmt.Print("Choose a card from your deck: ")
 			fmt.Scanln(&selected)
-			if card = player.deck.getCardFromDeck(selected-1); card == nil {
+			if card = player.deck.getCardFromDeck(selected - 1); card == nil {
 				fmt.Println("Invalid card!")
 				continue
 			}
-            log.Println("DEBUG:", card)
+			log.Println("DEBUG:", card)
 			if card.isSuitEqual(HEARTS) && !player.isHeartsBroken {
-				fmt.Println("Invalid card!")
+				fmt.Println("Invalid card! Hearts not broken!")
 				continue
 			}
 			break
@@ -246,7 +246,7 @@ func (player *Player) Play() {
 		for {
 			player.ringClient.Recv(&player.msg)
 			if player.msg.MsgType == HEARTS_BROKEN {
-				player.isHeartsBroken = true
+				player.SetHeartsBroken()
 			}
 			if player.msg.MsgType == NEXT {
 				break
@@ -261,16 +261,17 @@ func (player *Player) Play() {
 		for {
 			fmt.Print("Choose a card from your deck: ")
 			fmt.Scanln(&selected)
-			if card = player.deck.getCardFromDeck(selected-1); card == nil {
+			if card = player.deck.getCardFromDeck(selected - 1); card == nil {
 				fmt.Println("Invalid card!")
 				continue
 			}
 			if hasMasterSuit && !card.isSuitEqual(masterSuit) {
-				fmt.Println("Invalid card!")
+				fmt.Println("Invalid card! Suit not the same as master suit!")
 				continue
 			}
 			/* broadcast HEARTS_BROKEN */
 			if !player.isHeartsBroken && card.isSuitEqual(HEARTS) {
+				player.SetHeartsBroken()
 				player.msg.MsgType = HEARTS_BROKEN
 				player.sendForAll(&player.msg)
 			}
@@ -288,6 +289,11 @@ func (player *Player) Play() {
 	player.ringClient.Send(player.clockWiseIds[next], &player.msg)
 }
 
+func (player *Player) SetHeartsBroken() {
+	player.isHeartsBroken = true
+	fmt.Println("Hearts broken!")
+}
+
 func (player *Player) ResetHeartsBroken() {
 	player.isHeartsBroken = false
 }
@@ -297,7 +303,7 @@ func (player *Player) WaitForAllCards() {
 	for {
 		player.ringClient.Recv(&player.msg)
 		if player.msg.MsgType == HEARTS_BROKEN {
-			player.isHeartsBroken = true
+			player.SetHeartsBroken()
 		}
 		/* player before round master makes no distinction between master and other
 		 * players and that is why message type here should be NEXT */
@@ -522,16 +528,16 @@ func (c *Card) isCardEqual(rank, suit int8) bool {
 }
 
 func (card *Card) printCard(it int) {
-    //fmt.Println("DEBUG:", card.Rank, card.Suit)
+	//fmt.Println("DEBUG:", card.Rank, card.Suit)
 	fmt.Printf("%v: %v%v ", it, ranks[card.Rank], suits[card.Suit])
 }
 
 func (player *Player) printRecvCards() {
 	numPlayed := int(player.msg.NumPlayedCards)
-	it := (player.myPosition + NUM_PLAYERS - numPlayed)%NUM_PLAYERS
-    log.Println("it", it, "numPlayed", numPlayed)
+	it := (player.myPosition + NUM_PLAYERS - numPlayed) % NUM_PLAYERS
+	log.Println("it", it, "numPlayed", numPlayed)
 	fmt.Println("Cards played:")
-    for {
+	for {
 		player.msg.Cards[it].printCard(int(it))
 		if it = (it + 1) % NUM_PLAYERS; it == player.myPosition {
 			break
@@ -544,7 +550,7 @@ func (deck *deck) printDeck() {
 	fmt.Println("Your cards:")
 	for i := range deck.cards {
 		deck.cards[i].printCard(i + 1)
-		if i%7 == 0 && i!=0 {
+		if i%7 == 0 && i != 0 {
 			fmt.Println()
 		}
 	}
