@@ -375,6 +375,7 @@ func (player *Player) InformRoundLoser() {
 				player.isGameActive = false
 				break
 			}
+			fmt.Printf("Unexpected [%v]\n", player.msg.MsgType)
 		}
 	} else {
 		player.points += sum
@@ -469,6 +470,9 @@ func (player *Player) WaitForResult() {
 		player.WaitForResult() /* recursive call */
 	case END_GAME:
 		player.isGameActive = false
+	default:
+		fmt.Printf("Unexpected [%v]\n", player.msg.MsgType)
+		player.WaitForResult() /* recursive call */
 	}
 }
 
