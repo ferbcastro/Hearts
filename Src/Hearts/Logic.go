@@ -232,6 +232,7 @@ func (player *Player) Play() {
 	var selected int
 	var card *Card
 	var hasMasterSuit bool
+	var hasOnlyHearts bool
 	var masterSuit int8
 	var next int
 
@@ -240,6 +241,8 @@ func (player *Player) Play() {
 		player.msg.NumPlayedCards = 0
 		fmt.Println("You begin round!")
 		player.deck.printDeck()
+
+		hasOnlyHearts = player.deckOnlyHasSuit(HEARTS)
 		for {
 			fmt.Print("Choose a card from your deck: ")
 			fmt.Scanln(&selected)
@@ -247,9 +250,15 @@ func (player *Player) Play() {
 				fmt.Println("Invalid card!")
 				continue
 			}
-			if card.isSuitEqual(HEARTS) && !player.isHeartsBroken {
-				fmt.Println("Invalid card! Hearts not broken!")
-				continue
+			if card.isSuitEqual(HEARTS) {
+				if hasOnlyHearts || player.isHeartsBroken {
+					player.SetHeartsBroken()
+					player.msg.MsgType = HEARTS_BROKEN
+					player.broadcastMsg()
+				} else {
+					fmt.Println("Invalid card! Hearts not broken!")
+					continue
+				}
 			}
 			break
 		}
@@ -272,7 +281,7 @@ func (player *Player) Play() {
 		player.printRecvCards()
 
 		masterSuit = player.msg.MasterSuit
-		hasMasterSuit = player.deckHasMasterSuit(masterSuit)
+		hasMasterSuit = player.deckHasSuit(masterSuit)
 		for {
 			fmt.Print("Choose a card from your deck: ")
 			fmt.Scanln(&selected)
@@ -502,13 +511,22 @@ func (player *Player) NoCardsLeft() bool {
 // Local functions
 //===================================================================
 
-func (player *Player) deckHasMasterSuit(masterSuit int8) bool {
+func (player *Player) deckHasSuit(suit int8) bool {
 	for i := 0; i < player.deck.cardsLeft; i++ {
-		if player.deck.cards[i].isSuitEqual(masterSuit) {
+		if player.deck.cards[i].isSuitEqual(suit) {
 			return true
 		}
 	}
 	return false
+}
+
+func (player *Player) deckOnlyHasSuit(suit int8) bool {
+	for i := 0; i < player.deck.cardsLeft; i++ {
+		if !player.deck.cards[i].isSuitEqual(suit) {
+			return false
+		}
+	}
+	return true
 }
 
 func (player *Player) recvMsg() {
