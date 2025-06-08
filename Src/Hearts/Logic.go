@@ -250,8 +250,8 @@ func (player *Player) Play() {
 				fmt.Println("Invalid card!")
 				continue
 			}
-			if card.isSuitEqual(HEARTS) {
-				if hasOnlyHearts || player.isHeartsBroken {
+			if card.isSuitEqual(HEARTS) && !player.isHeartsBroken {
+				if hasOnlyHearts {
 					player.SetHeartsBroken()
 					player.msg.MsgType = HEARTS_BROKEN
 					player.broadcastMsg()
