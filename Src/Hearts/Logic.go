@@ -429,7 +429,7 @@ func (player *Player) AnounceWinner() {
 			player.recvMsg()
 			if player.msg.MsgType == PTS_REPLY && player.msg.SourceId == dest {
 				sentReplies++
-                break
+				break
 			}
 		}
 		if currentMin > player.msg.EarnedPoints {
@@ -474,7 +474,7 @@ func (player *Player) WaitForResult() int {
 	case PTS_QUERY:
 		player.msg.MsgType = PTS_REPLY
 		sourcePrev := player.msg.SourceId
-        player.msg.SourceId = player.myId
+		player.msg.SourceId = player.myId
 		player.msg.EarnedPoints = player.points
 		player.sendMsg(sourcePrev)
 		return WAIT_FOR_MORE
