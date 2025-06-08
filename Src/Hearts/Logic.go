@@ -12,7 +12,7 @@ import (
 const CARDS_PER_ROUND = 13
 const TOTAL_CARDS = 52
 const NUM_PLAYERS = 4
-const MAX_POINTS = 50
+const MAX_POINTS = 10
 const HEARTS_VAL = 1
 const QUEEN_SPADES_VAL = 13
 const ALL_RESULTS_GOT = 1
@@ -424,17 +424,17 @@ func (player *Player) AnounceWinner() {
 
 		player.msg.MsgType = PTS_QUERY
 		player.msg.SourceId = player.myId
-		player.ringClient.Send(dest, &player.msg)
+		player.sendMsg(dest)
 		for {
 			player.recvMsg()
 			if player.msg.MsgType == PTS_REPLY && player.msg.SourceId == dest {
-				break
+				sentReplies++
+                break
 			}
 		}
 		if currentMin > player.msg.EarnedPoints {
 			currentMin = player.msg.EarnedPoints
 			idWinner = player.msg.SourceId
-			sentReplies++
 		}
 
 		if sentReplies == NUM_PLAYERS {
@@ -473,9 +473,10 @@ func (player *Player) WaitForResult() int {
 		return WAIT_FOR_MORE
 	case PTS_QUERY:
 		player.msg.MsgType = PTS_REPLY
-		player.msg.SourceId = player.myId
+		sourcePrev := player.msg.SourceId
+        player.msg.SourceId = player.myId
 		player.msg.EarnedPoints = player.points
-		player.sendMsg(player.msg.SourceId)
+		player.sendMsg(sourcePrev)
 		return WAIT_FOR_MORE
 	case GAME_WINNER:
 		fmt.Printf("You won!\n\n")
