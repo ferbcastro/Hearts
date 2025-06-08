@@ -444,8 +444,12 @@ func (player *Player) AnounceWinner() {
 
 	fmt.Printf("We have a winner!\n\n")
 
-	player.msg.MsgType = GAME_WINNER
-	player.sendMsg(idWinner)
+	if idWinner == player.myId {
+		fmt.Printf("Round master won game!\n\n")
+	} else {
+		player.msg.MsgType = GAME_WINNER
+		player.sendMsg(idWinner)
+	}
 	player.msg.MsgType = END_GAME
 	player.broadcastMsg()
 }
