@@ -32,7 +32,6 @@ type TokenRingClient struct {
 
 	ipAddrs []string
 
-	hasToForward bool
 	waitForToken bool
 
 	sendPkg TokenRingPackage
@@ -45,7 +44,6 @@ func (client *TokenRingClient) recv() int {
 	client.recvPkg = TokenRingPackage{}
 	ret := client.sock.Recv(buffer)
 	if ret <= 0 {
-		//log.Println("TokenRingClient: failed to receive package")
 		return -1
 	}
 
@@ -82,24 +80,54 @@ func (client *TokenRingClient) forward() int {
 	return client.send()
 }
 
-/*
-TODO Implement token logic on Send and Recv
-*/
+/* Block until valid pkg for the calling machine arrives */
+/* if passed nil recv waits for the token */
+func (client *TokenRingClient) Recv(out any) {
+
+	for {
+		err := client.recv()
+		if err <= 0 {
+			continue
+		}
+
+		if client.recvPkg.TokenBusy == 0 {
+			if out == nil {
+				client.sendPkg.TokenBusy = 1
+				return
+			}
+		} else if out != nil {
+			if client.recvPkg.Dest == client.id || client.recvPkg.PkgType == BROADCAST {
+				err = client.recvPkg.decodeFromDataField(out)
+				if err != 0 {
+					log.Printf("Failed to decode pkg data\n")
+					continue
+				}
+				client.recvPkg.Ack = 1
+				client.forward()
+				return
+			}
+		}
+		client.forward()
+	}
+}
 
 func (client *TokenRingClient) Send(dest byte, data any) int {
+    return client.transmit(DATA, dest, data)
+}
+func (client *TokenRingClient) Broadcast(data any) int {
+    return client.transmit(BROADCAST, 0, data)
+}
+
+func (client *TokenRingClient) transmit(msgType int, dest byte, data any) int {
 
 	if client.waitForToken {
 		client.Recv(nil)
 	} else {
 		client.waitForToken = true
-
 	}
 
-	client.prepareSendPkg(dest, DATA, data)
+	client.prepareSendPkg(dest, msgType, data)
 
-	var i byte
-
-	//log.Printf("Sending from %d to %d pkg %d", client.sendPkg.Src, client.sendPkg.Dest, client.sendPkg.Serial)
 	var err int
 	for {
 		err = client.send()
@@ -108,11 +136,9 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 			return -1
 		}
 
-		i++
 		// wait for the pkg to comeback
 		err = client.recv()
 		if err <= 0 {
-			//log.Printf("Failed to recv pkg ")
 			return err
 		}
 
@@ -127,91 +153,6 @@ func (client *TokenRingClient) Send(dest byte, data any) int {
 			break
 		}
 	}
-	log.Printf(" Sent %d times\n", i)
 	return err
 }
 
-/* Block until valid pkg for the calling machine arrives */
-/* if passed nil recv waits for the token */
-func (client *TokenRingClient) Recv(out any) {
-
-	if client.hasToForward {
-		client.forward()
-		client.hasToForward = false
-	}
-
-	for {
-		err := client.recv()
-		if err <= 0 {
-			//log.Printf("Failed to receive a pk\n")
-			continue
-		}
-
-		//log.Printf("pkg received: %+v\n", client.recvPkg)
-
-		if client.recvPkg.TokenBusy == 0 {
-			if out == nil {
-				client.sendPkg.TokenBusy = 1
-				return
-			}
-		} else if out != nil {
-			if client.recvPkg.Dest == client.id || client.recvPkg.PkgType == BROADCAST {
-				err = client.recvPkg.decodeFromDataField(out)
-				if err != 0 {
-					log.Printf("Failed to decode pkg data\n")
-					continue
-				}
-				//log.Printf("Received from %d to %d pkg %d\n", client.recvPkg.Src, client.recvPkg.Dest, client.recvPkg.Serial)
-				client.recvPkg.Ack = 1
-				//client.hasToForward = false
-				client.forward()
-				return
-			}
-		}
-
-		client.forward()
-	}
-}
-
-func (client *TokenRingClient) Broadcast(data any) int {
-
-	if client.waitForToken {
-		client.Recv(nil)
-	} else {
-		client.waitForToken = true
-
-	}
-
-	client.prepareSendPkg(0, BROADCAST, data)
-
-	var i byte
-
-	var err int
-	for {
-		err = client.send()
-		if err <= 0 {
-			log.Printf("Failed to send data ")
-			return -1
-		}
-
-		i++
-		// wait for the pkg to comeback
-		err = client.recv()
-		if err <= 0 {
-			//log.Printf("Failed to recv pkg ")
-			return err
-		}
-
-		// check pkg and free token
-		if client.recvPkg.Src == client.id && client.recvPkg.Serial == client.serial {
-			client.sendPkg.TokenBusy = 0
-			err = client.send()
-			if err <= 0 {
-				log.Printf("Failed to send data ")
-				return -1
-			}
-			break
-		}
-	}
-	return err
-}
