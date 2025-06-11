@@ -12,7 +12,7 @@ import (
 const CARDS_PER_ROUND = 13
 const TOTAL_CARDS = 52
 const NUM_PLAYERS = 4
-const MAX_POINTS = 50
+const MAX_POINTS = 10
 const HEARTS_VAL = 1
 const QUEEN_SPADES_VAL = 13
 const ALL_RESULTS_GOT = 1
@@ -250,8 +250,8 @@ func (player *Player) Play() {
 				fmt.Println("Invalid card!")
 				continue
 			}
-			if card.isSuitEqual(HEARTS) {
-				if hasOnlyHearts || player.isHeartsBroken {
+			if card.isSuitEqual(HEARTS) && !player.isHeartsBroken {
+				if hasOnlyHearts {
 					player.SetHeartsBroken()
 					player.msg.MsgType = HEARTS_BROKEN
 					player.broadcastMsg()
@@ -424,17 +424,17 @@ func (player *Player) AnounceWinner() {
 
 		player.msg.MsgType = PTS_QUERY
 		player.msg.SourceId = player.myId
-		player.ringClient.Send(dest, &player.msg)
+		player.sendMsg(dest)
 		for {
 			player.recvMsg()
 			if player.msg.MsgType == PTS_REPLY && player.msg.SourceId == dest {
+				sentReplies++
 				break
 			}
 		}
 		if currentMin > player.msg.EarnedPoints {
 			currentMin = player.msg.EarnedPoints
 			idWinner = player.msg.SourceId
-			sentReplies++
 		}
 
 		if sentReplies == NUM_PLAYERS {
@@ -444,8 +444,13 @@ func (player *Player) AnounceWinner() {
 
 	fmt.Printf("We have a winner!\n\n")
 
-	player.msg.MsgType = GAME_WINNER
-	player.sendMsg(idWinner)
+	if idWinner == player.myId {
+		fmt.Printf("Round master won game!\n\n")
+	} else {
+		player.msg.MsgType = GAME_WINNER
+		player.sendMsg(idWinner)
+	}
+  
 	player.msg.MsgType = END_GAME
 	player.broadcastMsg()
 }
@@ -473,9 +478,10 @@ func (player *Player) WaitForResult() int {
 		return WAIT_FOR_MORE
 	case PTS_QUERY:
 		player.msg.MsgType = PTS_REPLY
+		sourcePrev := player.msg.SourceId
 		player.msg.SourceId = player.myId
 		player.msg.EarnedPoints = player.points
-		player.sendMsg(player.msg.SourceId)
+		player.sendMsg(sourcePrev)
 		return WAIT_FOR_MORE
 	case GAME_WINNER:
 		fmt.Printf("You won!\n\n")
