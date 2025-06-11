@@ -450,6 +450,7 @@ func (player *Player) AnounceWinner() {
 		player.msg.MsgType = GAME_WINNER
 		player.sendMsg(idWinner)
 	}
+  
 	player.msg.MsgType = END_GAME
 	player.broadcastMsg()
 }
